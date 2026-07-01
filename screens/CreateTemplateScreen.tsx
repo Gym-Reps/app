@@ -1,146 +1,81 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Pressable, TextInput } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import { Screen } from '../components/Screen';
 import { Body } from '../components/Text';
 import { Header } from '../components/Header';
-import { colors, radius, font } from '../utils/theme';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { templates, exercises, exerciseName } from '../data/mock';
+import { Field } from '../components/Field';
+import { Button } from '../components/Button';
+import { colors } from '../utils/theme';
+import { useRouter } from 'expo-router';
+import { useCreateTemplate } from '../api/mutations/template';
 
-type Row = { key: string; exerciseId: string; min: number; max: number };
-
-let uid = 0;
-const newKey = () => `row-${uid++}`;
-
+/**
+ * Step 1 of building a workout plan: name a new template. On create we replace
+ * this route with the editor (`/template/:id`) so Back doesn't return to the
+ * empty form, and the templates list is invalidated by the mutation.
+ */
 export function CreateTemplateScreen() {
   const router = useRouter();
-  const { templateId } = useLocalSearchParams<{ templateId?: string }>();
-  const source = templates.find((t) => t.id === templateId);
+  const create = useCreateTemplate();
+  const [title, setTitle] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
-  const [title, setTitle] = useState(source ? `${source.title} ${source.emoji}` : '');
-  const [rows, setRows] = useState<Row[]>(
-    source
-      ? source.exercises.map((e) => ({ key: newKey(), exerciseId: e.exerciseId, min: e.minReps, max: e.maxReps }))
-      : [{ key: newKey(), exerciseId: 'bench', min: 8, max: 12 }]
-  );
+  async function handleCreate() {
+    if (create.isPending) return;
+    setError(null);
 
-  const setReps = (key: string, field: 'min' | 'max', value: string) => {
-    const n = parseInt(value.replace(/\D/g, ''), 10);
-    setRows((rs) => rs.map((r) => (r.key === key ? { ...r, [field]: isNaN(n) ? 0 : n } : r)));
-  };
+    const trimmed = title.trim();
+    if (trimmed.length === 0) {
+      setError('Give your template a name.');
+      return;
+    }
 
-  const remove = (key: string) => setRows((rs) => rs.filter((r) => r.key !== key));
-
-  const addExercise = () => {
-    const used = new Set(rows.map((r) => r.exerciseId));
-    const nextEx = exercises.find((e) => !used.has(e.id)) ?? exercises[0];
-    setRows((rs) => [...rs, { key: newKey(), exerciseId: nextEx.id, min: nextEx.minReps, max: nextEx.maxReps }]);
-  };
+    try {
+      const template = await create.mutateAsync({ title: trimmed });
+      router.replace(`/template/${template.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not create template');
+    }
+  }
 
   return (
     <Screen>
-      <Header
-        title={source ? 'Edit template' : 'New template'}
-        onBack={() => router.back()}
-        right={
-          <Pressable onPress={() => router.back()} hitSlop={10}>
-            <Body color={colors.coral} size={14}>Save</Body>
-          </Pressable>
-        }
-      />
+      <Header title="New template" onBack={() => router.back()} />
+      <Body color={colors.textFaint} style={styles.sub}>
+        Name it now — add exercises next.
+      </Body>
 
-      <TextInput
-        style={styles.titleInput}
-        placeholder="Template name"
-        placeholderTextColor={colors.placeholder}
-        value={title}
-        onChangeText={setTitle}
-      />
+      <View style={styles.form}>
+        <Field
+          label="Template name"
+          placeholder="e.g. Upper A"
+          value={title}
+          onChangeText={setTitle}
+          autoCapitalize="sentences"
+        />
 
-      <Body color={colors.textFaint} size={13} style={styles.label}>Exercises</Body>
+        {error && (
+          <Text style={styles.error}>{error}</Text>
+        )}
 
-      <View style={styles.list}>
-        {rows.map((r) => (
-          <View key={r.key} style={styles.exCard}>
-            <View style={styles.exHead}>
-              <Body size={16}>⠿ {exerciseName(r.exerciseId)}</Body>
-              <Pressable onPress={() => remove(r.key)} hitSlop={10}>
-                <Body color="#bbb" size={15}>✕</Body>
-              </Pressable>
-            </View>
-            <View style={styles.repsRow}>
-              <Body color={colors.textMuted} size={13}>Reps</Body>
-              <TextInput
-                style={styles.repBox}
-                value={String(r.min)}
-                onChangeText={(t) => setReps(r.key, 'min', t)}
-                keyboardType="numeric"
-                maxLength={2}
-              />
-              <Body color={colors.textMuted} size={13}>–</Body>
-              <TextInput
-                style={styles.repBox}
-                value={String(r.max)}
-                onChangeText={(t) => setReps(r.key, 'max', t)}
-                keyboardType="numeric"
-                maxLength={2}
-              />
-            </View>
-          </View>
-        ))}
-
-        <Pressable onPress={addExercise}>
-          <View style={styles.add}>
-            <Body color={colors.coral} size={15}>+ Add exercise</Body>
-          </View>
-        </Pressable>
+        <Button
+          label={create.isPending ? 'Creating…' : 'Create template'}
+          onPress={handleCreate}
+          style={styles.cta}
+        />
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  titleInput: {
-    marginTop: 14,
-    borderWidth: 1.5,
-    borderColor: colors.placeholder,
-    borderStyle: 'dashed',
-    borderRadius: radius.sm + 2,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontFamily: font.body,
-    fontSize: 16,
-    color: colors.text,
-  },
-  label: { marginTop: 14, marginBottom: 8 },
-  list: { gap: 14 },
-  exCard: {
-    borderWidth: 1.5,
-    borderColor: colors.ink,
-    borderRadius: radius.md,
-    padding: 12,
-    gap: 10,
-  },
-  exHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  repsRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  repBox: {
-    borderWidth: 1.5,
-    borderColor: colors.lineStrong,
-    borderRadius: radius.sm,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    minWidth: 44,
-    textAlign: 'center',
-    fontFamily: font.body,
-    fontSize: 15,
-    color: colors.text,
-  },
-  add: {
-    borderWidth: 1.5,
-    borderColor: colors.coral,
-    borderStyle: 'dashed',
-    borderRadius: radius.md,
-    paddingVertical: 12,
-    alignItems: 'center',
+  sub: { marginTop: 6 },
+  form: { marginTop: 18, gap: 16 },
+  cta: { marginTop: 6 },
+  error: {
+    color: colors.bad,
+    paddingLeft: 4,
+    borderLeftWidth: 1,
+    borderColor: colors.bad,
   },
 });

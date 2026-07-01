@@ -1,0 +1,57 @@
+import { z } from 'zod';
+
+/**
+ * Trainment templates (reusable workout plans) and their exercise slots.
+ * Backend contract: create lives in the trainment module; the exercise slots are
+ * `exercise_template`s (module 05, `/trainment-templates/:id/exercises`). API
+ * responses are camelCased (matching the catalog module), so field names here
+ * are camelCase even though Prisma stores snake_case.
+ */
+
+export const ZTrainmentTemplate = z.object({
+  id: z.string(),
+  title: z.string(),
+  createdAt: z.string().nullish(),
+  updatedAt: z.string().nullish(),
+});
+export type TrainmentTemplate = z.infer<typeof ZTrainmentTemplate>;
+
+/** `POST /trainment-templates` → `201 { trainmentTemplate }`. */
+export const ZCreateTemplateResponse = z.object({
+  trainmentTemplate: ZTrainmentTemplate,
+});
+
+/**
+ * A planned exercise slot inside a template. The DTO carries the snapshotted
+ * `title` + the catalog reference, but no image/muscle group — those are
+ * cross-referenced against the cached catalog for display (see the editor).
+ */
+export const ZExerciseTemplate = z.object({
+  id: z.string(),
+  title: z.string(),
+  exerciseCatalogId: z.string().nullish(),
+  trainmentTemplateId: z.string().nullish(),
+  createdAt: z.string().nullish(),
+});
+export type ExerciseTemplate = z.infer<typeof ZExerciseTemplate>;
+
+/** `POST /trainment-templates/:id/exercises` → `201 { exerciseTemplate }`. */
+export const ZAddExerciseResponse = z.object({
+  exerciseTemplate: ZExerciseTemplate,
+});
+
+/**
+ * `GET /trainment-templates/:id/exercises`. The exact envelope is loosely
+ * specified in the backend appendix, so accept a bare array or a wrapped
+ * `{ exercises }` / `{ exerciseTemplates }` and normalize to `ExerciseTemplate[]`.
+ */
+export const ZExerciseTemplateList = z.union([
+  z.array(ZExerciseTemplate),
+  z.object({ exercises: z.array(ZExerciseTemplate) }).transform((o) => o.exercises),
+  z
+    .object({ exerciseTemplates: z.array(ZExerciseTemplate) })
+    .transform((o) => o.exerciseTemplates),
+]);
+
+export type CreateTemplateBody = { title: string };
+export type AddTemplateExerciseBody = { exerciseCatalogId: string };

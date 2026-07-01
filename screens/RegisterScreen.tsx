@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable, Text } from 'react-native';
 import { Screen } from '../components/Screen';
 import { Body, Display } from '../components/Text';
 import { Field } from '../components/Field';
@@ -7,14 +7,53 @@ import { Button } from '../components/Button';
 import { useRouter } from 'expo-router';
 import { colors, radius } from '../utils/theme';
 import { useAuth } from '../utils/auth';
+import { ZRegisterUserRequest } from '../api/schemas/user';
+import { useRegister, useAuthenticate } from '../api/mutations/user';
 
 export function RegisterScreen() {
   const { signIn } = useAuth();
   const router = useRouter();
+  const register = useRegister();
+  const login = useAuthenticate();
   const [agreed, setAgreed] = useState(false);
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [errors, setErrors] = useState<string[] | null>(null);
+
+  const pending = register.isPending || login.isPending;
+
+  async function handleSignUp() {
+    if (pending) return;
+    setErrors(null);
+
+    if (!agreed) {
+      setErrors(['Please agree to the Terms & Privacy Policy.']);
+      return;
+    }
+
+    const parsed = ZRegisterUserRequest.safeParse({
+      username,
+      email,
+      password,
+      confirmPassword: confirm,
+    });
+    if (!parsed.success) {
+      setErrors(parsed.error.issues.map((issue) => issue.message));
+      return;
+    }
+
+    try {
+      // Register returns 201 with no token, so authenticate right after with the
+      // same credentials to open the session. The auth gate then routes to (tabs).
+      await register.mutateAsync(parsed.data);
+      const { token } = await login.mutateAsync({ email, password });
+      signIn(token);
+    } catch (err) {
+      setErrors([err instanceof Error ? err.message : 'Could not create account']);
+    }
+  }
 
   return (
     <Screen bg={colors.card}>
@@ -25,6 +64,7 @@ export function RegisterScreen() {
       <Body color={colors.textFaint} style={styles.sub}>Start tracking in 30 seconds.</Body>
 
       <View style={styles.form}>
+        <Field label="Username" placeholder="yourname" value={username} onChangeText={setUsername} />
         <Field label="Email" placeholder="you@email.com" value={email} onChangeText={setEmail} keyboardType="email-address" />
         <Field label="Password" placeholder="• • • • • • • •" value={password} onChangeText={setPassword} secure />
         <Field label="Confirm password" placeholder="• • • • • • • •" value={confirm} onChangeText={setConfirm} secure />
@@ -38,7 +78,20 @@ export function RegisterScreen() {
           </Body>
         </Pressable>
 
-        <Button label="Sign up" onPress={signIn} style={styles.cta} />
+        {errors && (
+          <View style={{ gap: 12 }}>
+            {errors.map((error, i) => (
+              <Text
+                key={i}
+                style={{ color: colors.bad, paddingLeft: 4, borderLeftWidth: 1, borderColor: colors.bad }}
+              >
+                {error}
+              </Text>
+            ))}
+          </View>
+        )}
+
+        <Button label={pending ? 'Creating…' : 'Sign up'} onPress={handleSignUp} style={styles.cta} />
         <Pressable onPress={() => router.back()}>
           <Body color={colors.textMuted} style={styles.center}>
             Have an account? <Body color={colors.coral}>Log in</Body>

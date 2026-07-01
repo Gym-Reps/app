@@ -7,19 +7,23 @@ import { Button } from '../components/Button';
 import { useRouter } from 'expo-router';
 import { colors, radius, hardShadowStrong,    } from '../utils/theme';
 import { useAuth } from '../utils/auth';
-import { LoginSchema } from '../utils/schemas';
+import { ZAuthenticateRequest } from '../api/schemas/user';
+import { useAuthenticate } from '../api/mutations/user';
+
 
 export function LoginScreen() {
   const { signIn } = useAuth();
   const router = useRouter();
+  const login = useAuthenticate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<string[] | null>(null)
 
   async function handleSignIn() {
+    if (login.isPending) return
     if (errors) setErrors(null)
 
-    const parsedRequest = LoginSchema.safeParse({
+    const parsedRequest = ZAuthenticateRequest.safeParse({
       email,
       password
     })
@@ -29,9 +33,14 @@ export function LoginScreen() {
       return
     }
 
-    // call api here — on success, open the session. The auth gate in
-    // app/_layout.tsx then redirects into the (tabs) group.
-    signIn();
+    try {
+      // On success, open the session with the returned token. The auth gate in
+      // app/_layout.tsx then redirects into the (tabs) group.
+      const { token } = await login.mutateAsync(parsedRequest.data);
+      signIn(token);
+    } catch (err) {
+      setErrors([err instanceof Error ? err.message : 'Could not sign in']);
+    }
   }
 
   return (
@@ -48,18 +57,18 @@ export function LoginScreen() {
         <Field label="Password" placeholder="• • • • • • • •" value={password} onChangeText={setPassword} secure />
         {errors && (
           <View style={{ gap: 12 }}>
-            {errors.map((error) => {
-              console.log("err ->", error)
-
-              return (
-                <Text style={{ color: colors.bad, paddingLeft: 4, borderLeftWidth: 1, borderColor: colors.bad }}>{error}</Text>
-              )
-            }) }
-            
+            {errors.map((error, i) => (
+              <Text
+                key={i}
+                style={{ color: colors.bad, paddingLeft: 4, borderLeftWidth: 1, borderColor: colors.bad }}
+              >
+                {error}
+              </Text>
+            ))}
           </View>
         )}
         
-        <Button label="Log in" onPress={handleSignIn} style={styles.cta} />
+        <Button label={login.isPending ? 'Logging in…' : 'Log in'} onPress={handleSignIn} style={styles.cta} />
         {/* <Pressable onPress={() => {}}>
           <Body color={colors.coral} style={styles.center}>Forgot password?</Body>
         </Pressable> */}

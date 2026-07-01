@@ -1,0 +1,63 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  addTemplateExercise,
+  createTemplate,
+  removeTemplateExercise,
+} from '../services/template';
+import type {
+  AddTemplateExerciseBody,
+  CreateTemplateBody,
+  ExerciseTemplate,
+  TrainmentTemplate,
+} from '../schemas/template';
+
+/**
+ * Template mutations. Each unwraps the service `Result` and throws on `Err` so
+ * TanStack Query surfaces the error; `onSuccess` invalidates the affected cache
+ * (the templates list, or a template's exercise slots) so the UI refreshes
+ * without a manual refetch.
+ */
+
+/** POST /trainment-templates — on success invalidate the templates list. */
+export function useCreateTemplate() {
+  const qc = useQueryClient();
+  return useMutation<TrainmentTemplate, Error, CreateTemplateBody>({
+    mutationFn: async (body) => {
+      const res = await createTemplate(body);
+      if (!res.ok) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['templates'] });
+    },
+  });
+}
+
+/** POST /trainment-templates/:id/exercises — invalidate this template's slots. */
+export function useAddTemplateExercise(templateId: string) {
+  const qc = useQueryClient();
+  return useMutation<ExerciseTemplate, Error, AddTemplateExerciseBody>({
+    mutationFn: async (body) => {
+      const res = await addTemplateExercise(templateId, body);
+      if (!res.ok) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['template', templateId, 'exercises'] });
+    },
+  });
+}
+
+/** DELETE /exercise-templates/:id — invalidate this template's slots. */
+export function useRemoveTemplateExercise(templateId: string) {
+  const qc = useQueryClient();
+  return useMutation<void, Error, string>({
+    mutationFn: async (exerciseTemplateId) => {
+      const res = await removeTemplateExercise(exerciseTemplateId);
+      if (!res.ok) throw new Error(res.error);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['template', templateId, 'exercises'] });
+    },
+  });
+}

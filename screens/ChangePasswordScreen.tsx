@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import { Screen } from '../components/Screen';
 import { Body, Display } from '../components/Text';
 import { Field } from '../components/Field';
@@ -8,6 +8,8 @@ import { Header } from '../components/Header';
 import { colors } from '../utils/theme';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../utils/auth';
+import { ZChangePasswordRequest } from '../api/schemas/user';
+import { useChangePassword } from '../api/mutations/user';
 
 function strengthOf(pw: string) {
   let score = 0;
@@ -22,10 +24,34 @@ const LABELS = ['', 'Weak', 'Okay', 'Strong — nice 💪'];
 export function ChangePasswordScreen() {
   const { signOut } = useAuth();
   const router = useRouter();
+  const changePassword = useChangePassword();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [errors, setErrors] = useState<string[] | null>(null);
   const score = useMemo(() => strengthOf(next), [next]);
+
+  async function handleUpdate() {
+    if (changePassword.isPending) return;
+    setErrors(null);
+
+    const parsed = ZChangePasswordRequest.safeParse({
+      currentPassword: current,
+      newPassword: next,
+      confirmPassword: confirm,
+    });
+    if (!parsed.success) {
+      setErrors(parsed.error.issues.map((issue) => issue.message));
+      return;
+    }
+
+    try {
+      await changePassword.mutateAsync(parsed.data);
+      router.back();
+    } catch (err) {
+      setErrors([err instanceof Error ? err.message : 'Could not update password']);
+    }
+  }
 
   return (
     <Screen
@@ -50,7 +76,25 @@ export function ChangePasswordScreen() {
         {score > 0 && <Body color={colors.textFaint} size={12} style={styles.hint}>{LABELS[score]}</Body>}
 
         <Field label="Confirm new password" placeholder="• • • • • • • •" value={confirm} onChangeText={setConfirm} secure />
-        <Button label="Update password" onPress={() => router.back()} style={styles.cta} />
+
+        {errors && (
+          <View style={{ gap: 12 }}>
+            {errors.map((error, i) => (
+              <Text
+                key={i}
+                style={{ color: colors.bad, paddingLeft: 4, borderLeftWidth: 1, borderColor: colors.bad }}
+              >
+                {error}
+              </Text>
+            ))}
+          </View>
+        )}
+
+        <Button
+          label={changePassword.isPending ? 'Updating…' : 'Update password'}
+          onPress={handleUpdate}
+          style={styles.cta}
+        />
       </View>
     </Screen>
   );
