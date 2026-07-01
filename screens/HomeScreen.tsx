@@ -1,106 +1,280 @@
-import React from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import React, { useCallback } from 'react';
+import { View, StyleSheet, Pressable, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { Screen } from '../components/Screen';
 import { Body, Display } from '../components/Text';
 import { Card } from '../components/Card';
 import { Pill } from '../components/Pill';
 import { Button } from '../components/Button';
-import { colors, radius } from '../utils/theme';
-import { useRouter } from 'expo-router';
-import { homeStats, templates, exerciseName } from '../data/mock';
+import { ProgressRing } from '../components/Charts';
+import { colors, radius, spacing } from '../utils/theme';
+import { useTrainments, useWeeklyProgress } from '../api/queries/trainment';
+import type { Trainment, WeeklyProgress } from '../api/schemas/trainment';
+import { usePendingCount } from '../stores/syncQueue';
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** "Jun 10, 14:30" from an ISO string (local time, deterministic — no Intl dep). */
+function formatWhen(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const time = d.toTimeString().slice(0, 5);
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${time}`;
+}
+
+/** A cached template as stored by slice 03's `['templates']` query (read generically). */
+type CachedTemplate = { id: string; title: string };
 
 export function HomeScreen() {
   const router = useRouter();
-  const next = templates[0]; // "Push Day"
-  const chips = next.exercises.slice(0, 3).map((e) => exerciseName(e.exerciseId).split(' ')[0]);
-  const extra = next.exercises.length - chips.length;
+  const qc = useQueryClient();
+  const weekly = useWeeklyProgress();
+  const trainments = useTrainments();
+  const pendingSync = usePendingCount();
+
+  const rows = trainments.data?.pages.flatMap((p) => p.trainments) ?? [];
+
+  /** Join a trainment to its template title via the cached `['templates']` list. */
+  const titleFor = useCallback(
+    (t: Trainment): string => {
+      const cached = qc.getQueryData<CachedTemplate[]>(['templates']);
+      const match = cached?.find((c) => c.id === t.trainmentTemplateId);
+      return match?.title ?? t.title ?? 'Workout';
+    },
+    [qc]
+  );
+
+  const onRefresh = useCallback(() => {
+    qc.invalidateQueries({ queryKey: ['weekly-progress'] });
+    qc.invalidateQueries({ queryKey: ['trainments'] });
+  }, [qc]);
+
+  const refreshing = weekly.isRefetching || trainments.isRefetching;
+
+  const header = (
+    <View>
+      <Display size={26} style={styles.title}>Your week</Display>
+
+      <WeeklyCard
+        query={weekly}
+        onSetGoal={() => router.push('/profile')}
+        onRetry={() => weekly.refetch()}
+      />
+
+      {pendingSync > 0 && (
+        <Card style={styles.pending}>
+          <Body color={colors.textMuted} size={13}>
+            {pendingSync === 1
+              ? '1 workout waiting to sync — will upload when online.'
+              : `${pendingSync} workouts waiting to sync — will upload when online.`}
+          </Body>
+        </Card>
+      )}
+
+      <Body color={colors.textFaint} size={13} style={styles.sectionLabel}>Latest trainments</Body>
+    </View>
+  );
+
+  // Initial load → skeleton rows under the header.
+  const showSkeletonRows = trainments.isLoading;
 
   return (
-    <Screen>
-      {/* Greeting + streak */}
-      <View style={styles.greetRow}>
-        <View>
-          <Display size={26}>Hey {homeStats.name} 👋</Display>
-          <Body color={colors.textFaint} size={13}>{homeStats.date}</Body>
-        </View>
-        <Pill label={`🔥 ${homeStats.streak}`} tone="ghost" size={14} />
-      </View>
-
-      {/* NEXT UP hero */}
-      <Card strong shadow style={styles.hero}>
-        <Body color={colors.textFaint} size={12} style={styles.kicker}>NEXT UP</Body>
-        <View style={styles.heroTitleRow}>
-          <Display size={28}>{next.title} {next.emoji}</Display>
-          <Body color={colors.textFaint} size={12}>~{next.estMinutes} min</Body>
-        </View>
-        <View style={styles.chips}>
-          {chips.map((c) => (
-            <Pill key={c} label={c} tone="neutral" size={12} />
-          ))}
-          {extra > 0 && <Pill label={`+${extra}`} tone="neutral" size={12} />}
-        </View>
-        <Button label="Start workout" icon="▶" onPress={() => router.push({ pathname: '/log-workout', params: { templateId: next.id } })} />
-      </Card>
-
-      {/* Week strip */}
-      <View style={styles.strip}>
-        <StatCell value={`${homeStats.sessionsDone}`} suffix={`/${homeStats.sessionsGoal}`} label="sessions" />
-        <StatCell value={`${homeStats.volumeTons}t`} label="volume" />
-        <StatCell value={`${homeStats.prs}`} label="PRs" valueColor={colors.good} />
-      </View>
-
-      {/* Last session recap */}
-      <Body color={colors.textFaint} size={13} style={styles.sectionLabel}>Last session</Body>
-      <Pressable onPress={() => router.push('/compare')}>
-        <Card style={styles.recap}>
-          <View>
-            <Body size={15}>Push Day · Jun 10</Body>
-            <Body color={colors.good} size={12}>beat last Bench by +5 kg 🎉</Body>
-          </View>
-          <Body color="#bbb" size={18}>›</Body>
-        </Card>
-      </Pressable>
+    <Screen scroll={false}>
+      <FlatList
+        data={rows}
+        keyExtractor={(t) => t.id}
+        ListHeaderComponent={header}
+        renderItem={({ item }) => (
+          <TrainmentRow
+            trainment={item}
+            title={titleFor(item)}
+            onPress={() =>
+              router.push({ pathname: '/progress-detail', params: { trainmentId: item.id } })
+            }
+          />
+        )}
+        ListEmptyComponent={
+          showSkeletonRows ? (
+            <View style={styles.list}>
+              <SkeletonRow />
+              <SkeletonRow />
+              <SkeletonRow />
+            </View>
+          ) : trainments.isError ? (
+            <InlineError message={trainments.error.message} onRetry={() => trainments.refetch()} />
+          ) : (
+            <EmptyState onBrowse={() => router.push('/templates')} />
+          )
+        }
+        onEndReachedThreshold={0.4}
+        onEndReached={() => {
+          if (trainments.hasNextPage && !trainments.isFetchingNextPage) trainments.fetchNextPage();
+        }}
+        ListFooterComponent={
+          trainments.isFetchingNextPage ? (
+            <ActivityIndicator color={colors.coral} style={styles.footer} />
+          ) : null
+        }
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.coral} />
+        }
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+      />
     </Screen>
   );
 }
 
-function StatCell({
-  value,
-  suffix,
-  label,
-  valueColor,
+/** Weekly progress card: ring vs. goal, or a "set a goal" hint when goal is null. */
+function WeeklyCard({
+  query,
+  onSetGoal,
+  onRetry,
 }: {
-  value: string;
-  suffix?: string;
-  label: string;
-  valueColor?: string;
+  query: ReturnType<typeof useWeeklyProgress>;
+  onSetGoal: () => void;
+  onRetry: () => void;
 }) {
+  if (query.isLoading) return <SkeletonCard />;
+  if (query.isError) {
+    return (
+      <Card strong style={styles.weekCard}>
+        <InlineError message={query.error.message} onRetry={onRetry} />
+      </Card>
+    );
+  }
+
+  const data = query.data as WeeklyProgress;
+  const hasGoal = data.goal != null && data.goal > 0;
+  const percent = hasGoal ? Math.round(Math.min(data.completed / (data.goal as number), 1) * 100) : 0;
+
   return (
-    <View style={styles.cell}>
-      <Display size={22} color={valueColor}>
-        {value}
-        {suffix != null && <Body color={colors.textFaint} size={13}>{suffix}</Body>}
-      </Display>
-      <Body color={colors.textFaint} size={11}>{label}</Body>
+    <Card strong shadow style={styles.weekCard}>
+      {hasGoal ? (
+        <View style={styles.weekRow}>
+          <ProgressRing percent={percent} />
+          <View style={styles.weekText}>
+            <Body color={colors.textFaint} size={12}>THIS WEEK</Body>
+            <Display size={26}>
+              {data.completed}
+              <Body color={colors.textFaint} size={15}> / {data.goal}</Body>
+            </Display>
+            <Body color={data.completed >= (data.goal as number) ? colors.good : colors.textFaint} size={13}>
+              {data.completed >= (data.goal as number) ? 'Goal reached 🎉' : 'workouts done'}
+            </Body>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.weekText}>
+          <Body color={colors.textFaint} size={12}>THIS WEEK</Body>
+          <Display size={26}>
+            {data.completed}
+            <Body color={colors.textFaint} size={15}> done</Body>
+          </Display>
+          <Body color={colors.textFaint} size={13} style={styles.goalHint}>
+            Set a weekly goal to track your progress.
+          </Body>
+          <Button label="Set a goal" variant="outline" onPress={onSetGoal} />
+        </View>
+      )}
+    </Card>
+  );
+}
+
+function TrainmentRow({
+  trainment,
+  title,
+  onPress,
+}: {
+  trainment: Trainment;
+  title: string;
+  onPress: () => void;
+}) {
+  const inProgress = trainment.finishedAt === null;
+  const when = inProgress
+    ? `Started ${formatWhen(trainment.startedAt)}`
+    : `${formatWhen(trainment.startedAt)} → ${formatWhen(trainment.finishedAt as string)}`;
+  return (
+    <Pressable onPress={onPress}>
+      <Card style={styles.row}>
+        <View style={styles.rowText}>
+          <Body size={15}>{title}</Body>
+          <Body color={colors.textFaint} size={12}>{when}</Body>
+        </View>
+        {inProgress ? (
+          <Pill label="in progress" tone="ghost" size={12} />
+        ) : (
+          <Body color="#bbb" size={18}>›</Body>
+        )}
+      </Card>
+    </Pressable>
+  );
+}
+
+function EmptyState({ onBrowse }: { onBrowse: () => void }) {
+  return (
+    <Card style={styles.empty}>
+      <Display size={22}>No workouts yet</Display>
+      <Body color={colors.textFaint} size={14} style={styles.emptyBody}>
+        Head to Templates and hit Start to log your first session.
+      </Body>
+      <Button label="Browse templates" icon="▶" onPress={onBrowse} />
+    </Card>
+  );
+}
+
+function InlineError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <View style={styles.errorBox}>
+      <Body color={colors.bad} size={14}>{message || 'Something went wrong'}</Body>
+      <Button label="Retry" variant="outline" onPress={onRetry} />
     </View>
   );
 }
 
+function SkeletonCard() {
+  return <View style={[styles.weekCard, styles.skeletonCard]} />;
+}
+
+function SkeletonRow() {
+  return <View style={styles.skeletonRow} />;
+}
+
 const styles = StyleSheet.create({
-  greetRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  hero: { marginTop: 16, gap: 11 },
-  kicker: { letterSpacing: 0.5 },
-  heroTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  strip: { flexDirection: 'row', gap: 10, marginTop: 16 },
-  cell: {
-    flex: 1,
-    borderWidth: 1.5,
-    borderColor: colors.line,
-    borderRadius: radius.md,
-    paddingVertical: 10,
-    alignItems: 'center',
+  content: { paddingBottom: spacing.xxl },
+  title: { marginBottom: 12 },
+  weekCard: { marginBottom: 16 },
+  pending: {
+    marginBottom: 16,
+    backgroundColor: colors.pinkTint,
+    borderColor: colors.pinkStrong,
   },
-  sectionLabel: { marginTop: 16, marginBottom: 8 },
-  recap: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  weekRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  weekText: { flex: 1, gap: 6 },
+  goalHint: { marginBottom: 4 },
+  sectionLabel: { marginTop: 4, marginBottom: 8 },
+  list: { gap: 10 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  rowText: { gap: 2, flex: 1 },
+  footer: { paddingVertical: 16 },
+  empty: { alignItems: 'center', gap: 8, paddingVertical: 24 },
+  emptyBody: { textAlign: 'center' },
+  errorBox: { gap: 10, alignItems: 'flex-start' },
+  skeletonCard: {
+    height: 120,
+    backgroundColor: colors.line,
+    borderRadius: radius.md,
+  },
+  skeletonRow: {
+    height: 58,
+    backgroundColor: colors.line,
+    borderRadius: radius.md,
+    marginBottom: 10,
+  },
 });

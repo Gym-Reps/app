@@ -2,7 +2,9 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   addTemplateExercise,
   createTemplate,
+  deleteTemplate,
   removeTemplateExercise,
+  renameTemplate,
 } from '../services/template';
 import type {
   AddTemplateExerciseBody,
@@ -28,6 +30,56 @@ export function useCreateTemplate() {
       return res.data;
     },
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['templates'] });
+    },
+  });
+}
+
+/** PATCH /trainment-templates/:id — rename, then invalidate the templates list. */
+export function useRenameTemplate() {
+  const qc = useQueryClient();
+  return useMutation<TrainmentTemplate, Error, { id: string; title: string }>({
+    mutationFn: async ({ id, title }) => {
+      const res = await renameTemplate(id, title);
+      if (!res.ok) throw new Error(res.error);
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['templates'] });
+    },
+  });
+}
+
+/**
+ * DELETE /trainment-templates/:id — optimistically drop the row from the
+ * `['templates']` cache, roll back on error, and re-sync on settle.
+ */
+export function useDeleteTemplate() {
+  const qc = useQueryClient();
+  return useMutation<
+    void,
+    Error,
+    string,
+    { previous?: TrainmentTemplate[] }
+  >({
+    mutationFn: async (id) => {
+      const res = await deleteTemplate(id);
+      if (!res.ok) throw new Error(res.error);
+    },
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ['templates'] });
+      const previous = qc.getQueryData<TrainmentTemplate[]>(['templates']);
+      qc.setQueryData<TrainmentTemplate[]>(['templates'], (old) =>
+        (old ?? []).filter((t) => t.id !== id)
+      );
+      return { previous };
+    },
+    onError: (_err, _id, ctx) => {
+      if (ctx?.previous) {
+        qc.setQueryData(['templates'], ctx.previous);
+      }
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ['templates'] });
     },
   });

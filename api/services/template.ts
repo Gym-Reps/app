@@ -9,6 +9,8 @@ import {
   ZAddExerciseResponse,
   ZCreateTemplateResponse,
   ZExerciseTemplateList,
+  ZTemplateList,
+  ZUpdateTemplateResponse,
 } from '../schemas/template';
 
 function errorMessage(err: unknown): string {
@@ -26,6 +28,43 @@ export async function createTemplate(
   try {
     const { data } = await api.post('/trainment-templates', body);
     return Ok(ZCreateTemplateResponse.parse(data).trainmentTemplate);
+  } catch (err) {
+    return Err(errorMessage(err));
+  }
+}
+
+/** GET /trainment-templates — the user's active templates. */
+export async function listTemplates(): Promise<
+  Result<TrainmentTemplate[], string>
+> {
+  try {
+    const { data } = await api.get('/trainment-templates');
+    return Ok(ZTemplateList.parse(data));
+  } catch (err) {
+    return Err(errorMessage(err));
+  }
+}
+
+/** PATCH /trainment-templates/:id — rename a template, returns the updated one. */
+export async function renameTemplate(
+  id: string,
+  title: string
+): Promise<Result<TrainmentTemplate, string>> {
+  try {
+    const { data } = await api.patch(`/trainment-templates/${id}`, { title });
+    return Ok(ZUpdateTemplateResponse.parse(data).trainmentTemplate);
+  } catch (err) {
+    return Err(errorMessage(err));
+  }
+}
+
+/** DELETE /trainment-templates/:id — soft-delete a template (204). */
+export async function deleteTemplate(
+  id: string
+): Promise<Result<void, string>> {
+  try {
+    await api.delete(`/trainment-templates/${id}`);
+    return Ok(undefined);
   } catch (err) {
     return Err(errorMessage(err));
   }

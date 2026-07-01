@@ -53,5 +53,30 @@ export const ZExerciseTemplateList = z.union([
     .transform((o) => o.exerciseTemplates),
 ]);
 
+/**
+ * `GET /trainment-templates`. The backend contract returns
+ * `{ trainmentTemplates: [...] }` (plural — confirmed in
+ * `backend/specs/01_TRAINMENT_MODULE.md`), but the frontend appendix noted the
+ * key as `trainmentTemplate` (singular). To stay tolerant of either envelope
+ * (and a bare array), accept any of them and normalize to `TrainmentTemplate[]`
+ * — mirroring `ZExerciseTemplateList` above.
+ */
+export const ZTemplateList = z.union([
+  z.array(ZTrainmentTemplate),
+  z
+    .object({ trainmentTemplates: z.array(ZTrainmentTemplate) })
+    .transform((o) => o.trainmentTemplates),
+  z
+    .object({ trainmentTemplate: z.array(ZTrainmentTemplate) })
+    .transform((o) => o.trainmentTemplate),
+  z.object({ templates: z.array(ZTrainmentTemplate) }).transform((o) => o.templates),
+]);
+
+/** `PATCH /trainment-templates/:id` → `200 { trainmentTemplate }`. */
+export const ZUpdateTemplateResponse = z.object({
+  trainmentTemplate: ZTrainmentTemplate,
+});
+
 export type CreateTemplateBody = { title: string };
 export type AddTemplateExerciseBody = { exerciseCatalogId: string };
+export type RenameTemplateBody = { title: string };

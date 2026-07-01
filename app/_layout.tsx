@@ -13,6 +13,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 
 import { AuthProvider, useAuth } from '../utils/auth';
 import { queryClient } from '../api/queryClient';
+import { useSyncQueue } from '../hooks/useSyncQueue';
 import { colors } from '../utils/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -42,6 +43,7 @@ function useAuthGate() {
 function RootNavigator() {
   const { status } = useAuth();
   useAuthGate();
+  useSyncQueue(); // background drain of pending_trainments_sync
 
   // Keep the native splash up until the session resolves, so we never flash the
   // wrong stack before the gate has decided.
