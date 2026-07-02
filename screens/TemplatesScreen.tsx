@@ -19,6 +19,7 @@ import { colors, radius, spacing } from '../utils/theme';
 import { useTemplates } from '../api/queries/template';
 import { useDeleteTemplate, useRenameTemplate } from '../api/mutations/template';
 import { listTemplateExercises } from '../api/services/template';
+import { loadLastSessionSeeds } from '../api/queries/prefill';
 import type { TrainmentTemplate } from '../api/schemas/template';
 import { useActiveTrainment } from '../stores/activeTrainment';
 
@@ -54,35 +55,47 @@ export function TemplatesScreen() {
   // Transient UI: which template is being renamed + the draft title.
   const [renaming, setRenaming] = useState<TrainmentTemplate | null>(null);
   const [draft, setDraft] = useState('');
+  // Which template's "Start" is mid-flight (fetching slots + last-session prefill).
+  const [startingId, setStartingId] = useState<string | null>(null);
 
   // Start a workout: fetch the template's exercise slots, seed the offline
   // active-session store (slice 05), then open the live log. If a session is
   // already in progress, offer to resume it or discard and start fresh.
   async function beginSession(t: TrainmentTemplate) {
-    const res = await listTemplateExercises(t.id);
-    if (!res.ok) {
-      Alert.alert('Could not start', res.error);
-      return;
+    if (startingId) return; // guard double taps while a Start is in flight
+    setStartingId(t.id);
+    try {
+      const res = await listTemplateExercises(t.id);
+      if (!res.ok) {
+        Alert.alert('Could not start', res.error);
+        return;
+      }
+      if (res.data.length === 0) {
+        Alert.alert(
+          'Empty template',
+          `"${t.title}" has no exercises yet. Add some before starting.`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Edit', onPress: () => router.push(`/template/${t.id}`) },
+          ]
+        );
+        return;
+      }
+      // Best-effort: prefill each exercise from the last same-template session.
+      // Returns an empty map offline / first-ever → sets seed blank (no hint).
+      const seeds = await loadLastSessionSeeds(t.id);
+      useActiveTrainment.getState().startFromTemplate({
+        templateId: t.id,
+        exercises: res.data.map((et) => ({
+          exerciseTemplateId: et.id,
+          title: et.title,
+          seedSets: seeds.get(et.id),
+        })),
+      });
+      router.push('/log-workout');
+    } finally {
+      setStartingId(null);
     }
-    if (res.data.length === 0) {
-      Alert.alert(
-        'Empty template',
-        `"${t.title}" has no exercises yet. Add some before starting.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Edit', onPress: () => router.push(`/template/${t.id}`) },
-        ]
-      );
-      return;
-    }
-    useActiveTrainment.getState().startFromTemplate({
-      templateId: t.id,
-      exercises: res.data.map((et) => ({
-        exerciseTemplateId: et.id,
-        title: et.title,
-      })),
-    });
-    router.push('/log-workout');
   }
 
   function handleStart(t: TrainmentTemplate) {
@@ -221,8 +234,9 @@ export function TemplatesScreen() {
 
                 <View style={styles.actions}>
                   <Button
-                    label="Start"
+                    label={startingId === item.id ? 'Starting…' : 'Start'}
                     onPress={() => handleStart(item)}
+                    loading={startingId === item.id}
                     style={styles.actionStart}
                   />
                   <Button

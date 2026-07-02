@@ -39,11 +39,11 @@ export const colors = {
 } as const;
 
 export const font = {
-  /** Caveat — used for display headings and big numbers. */
-  display: 'Caveat_700Bold',
-  displaySemi: 'Caveat_600SemiBold',
-  /** Patrick Hand — used for body copy and labels. */
-  body: 'PatrickHand_400Regular',
+  /** Satoshi — used for display headings and big numbers. */
+  display: 'Satoshi-Bold',
+  displaySemi: 'Satoshi-Medium',
+  /** Satoshi — used for body copy and labels. */
+  body: 'Satoshi-Regular',
 } as const;
 
 export const radius = {

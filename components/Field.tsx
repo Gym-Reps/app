@@ -58,6 +58,7 @@ export function Field({
           placeholderTextColor={colors.placeholder}
           value={value}
           onChangeText={onChangeText}
+          textAlignVertical="center"
           secureTextEntry={hidden}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
@@ -94,5 +95,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.text,
     paddingVertical: 8,
+    includeFontPadding: false,
   },
 });

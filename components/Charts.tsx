@@ -113,7 +113,7 @@ export function ProgressRing({ percent }: { percent: number }) {
         y={47}
         textAnchor="middle"
         fontFamily={font.display}
-        fontSize={22}
+        fontSize={18}
         fill={colors.ink}
       >
         {`${percent}%`}

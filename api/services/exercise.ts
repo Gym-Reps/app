@@ -3,7 +3,9 @@ import { api } from '../client';
 import { Err, Ok, Result } from '../result';
 import {
   PerformedExercise,
+  PerformedSet,
   ZPerformedExerciseList,
+  ZPerformedSetList,
 } from '../schemas/exercise';
 
 /** Prefer the backend's `{ message }` over Axios's generic status-code text. */
@@ -26,6 +28,22 @@ export async function listTrainmentExercises(
   try {
     const { data } = await api.get(`/trainments/${trainmentId}/exercises`);
     return Ok(ZPerformedExerciseList.parse(data));
+  } catch (err) {
+    return Err(errorMessage(err));
+  }
+}
+
+/**
+ * GET /trainments/:id/sets — every performed set in a finished session, ordered
+ * by `index` and keyed to its `exerciseId`. Used by the prefill loader (spec 05)
+ * to seed a new session's sets from the last same-template session's numbers.
+ */
+export async function listTrainmentSets(
+  trainmentId: string
+): Promise<Result<PerformedSet[], string>> {
+  try {
+    const { data } = await api.get(`/trainments/${trainmentId}/sets`);
+    return Ok(ZPerformedSetList.parse(data));
   } catch (err) {
     return Err(errorMessage(err));
   }

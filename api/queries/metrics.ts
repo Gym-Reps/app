@@ -68,10 +68,15 @@ export type ExerciseTrend = {
   latestExerciseId: string;
   /** Number of in-range sessions that included this exercise. */
   sessions: number;
-  /** Latest session's mean weight diff vs. the prior session (null = no comparison). */
-  latestWeightDiff: number | null;
-  latestRepsDiff: number | null;
-  /** Cumulative weight-diff series for the sparkline (empty when no diffs yet). */
+  /**
+   * Net change from the OLDEST to the MOST RECENT in-range session (null = fewer
+   * than two in-range sessions, so no comparison). Because each session's metric
+   * is a diff vs. its immediate predecessor, oldest→newest telescopes to the sum
+   * of every diff after the first in-range one.
+   */
+  rangeWeightDiff: number | null;
+  rangeRepsDiff: number | null;
+  /** Cumulative weight-diff series for the sparkline, anchored at the oldest in-range session (empty when no comparison). */
   points: number[];
   /** True if some session's metrics failed to load (row shown, marked retryable). */
   failed: boolean;
@@ -214,29 +219,39 @@ async function composeOverview(period: Period): Promise<MetricsOverview> {
     }
   }
 
-  // 3) Reduce each group to a trend row.
+  // 3) Reduce each group to a trend row. We compare the oldest and most recent
+  //    in-range performances. Each point's diff is vs. its immediate predecessor,
+  //    so the oldest→newest change telescopes to the sum of every diff AFTER the
+  //    first in-range session (that first diff references a session before the
+  //    range, so it's dropped — and it's what anchors the baseline at 0).
   const exercises: ExerciseTrend[] = [...groups.values()].map((g) => {
     const withDiff = g.points.filter((p) => p.weightDiff != null);
-    const last = withDiff[withDiff.length - 1];
-    let cumulative = 0;
-    const series = withDiff.map((p) => (cumulative += p.weightDiff ?? 0));
+    const sinceOldest = withDiff.slice(1);
+    const hasComparison = sinceOldest.length > 0;
+    let weightCumulative = 0;
+    const series = sinceOldest.map((p) => (weightCumulative += p.weightDiff ?? 0));
+    const rangeWeightDiff = hasComparison ? weightCumulative : null;
+    const rangeRepsDiff = hasComparison
+      ? sinceOldest.reduce((sum, p) => sum + (p.repsDiff ?? 0), 0)
+      : null;
     return {
       key: g.key,
       title: g.title,
       latestExerciseId: g.latestExerciseId,
       sessions: g.points.length,
-      latestWeightDiff: last?.weightDiff ?? null,
-      latestRepsDiff: last?.repsDiff ?? null,
-      // Anchor the sparkline at 0 so a single diff still renders a line.
-      points: series.length >= 1 ? [0, ...series] : [],
+      rangeWeightDiff,
+      rangeRepsDiff,
+      // Anchor the sparkline at 0 (= the oldest in-range performance) so its
+      // endpoint matches the headline delta.
+      points: hasComparison ? [0, ...series] : [],
       failed: g.failed,
     };
   });
 
   // Exercises with a real comparison first, then alphabetical.
   exercises.sort((a, b) => {
-    const aHas = a.latestWeightDiff != null ? 0 : 1;
-    const bHas = b.latestWeightDiff != null ? 0 : 1;
+    const aHas = a.rangeWeightDiff != null ? 0 : 1;
+    const bHas = b.rangeWeightDiff != null ? 0 : 1;
     return aHas - bHas || a.title.localeCompare(b.title);
   });
 

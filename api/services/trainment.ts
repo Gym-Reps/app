@@ -21,13 +21,23 @@ function errorMessage(err: unknown): string {
 
 /**
  * GET /trainments — the user's performed sessions, newest first. `page` is
- * 1-based (size 20). Powers the Home "latest trainments" infinite list.
+ * 1-based (size 20). Powers the Home "latest trainments" infinite list. Pass
+ * `trainmentTemplateId` to scope to one template's sessions (the prefill loader
+ * uses this to find the previous same-template session).
  */
 export async function listTrainments(
-  page = 1
+  page = 1,
+  opts?: { trainmentTemplateId?: string }
 ): Promise<Result<TrainmentListResponse, string>> {
   try {
-    const { data } = await api.get('/trainments', { params: { page } });
+    const { data } = await api.get('/trainments', {
+      params: {
+        page,
+        ...(opts?.trainmentTemplateId != null && {
+          trainmentTemplateId: opts.trainmentTemplateId,
+        }),
+      },
+    });
     return Ok(ZTrainmentListResponse.parse(data));
   } catch (err) {
     return Err(errorMessage(err));

@@ -4,7 +4,7 @@ import { Screen } from '../components/Screen';
 import { Body, Display } from '../components/Text';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
-import { Stepper, NumberField } from '../components/Stepper';
+import { Stepper } from '../components/Stepper';
 import { colors, radius, spacing } from '../utils/theme';
 import { useRouter } from 'expo-router';
 import {
@@ -30,6 +30,7 @@ export function LogWorkoutScreen() {
   const addSet = useActiveTrainment((s) => s.addSet);
   const editSet = useActiveTrainment((s) => s.editSet);
   const removeSet = useActiveTrainment((s) => s.removeSet);
+  const logSet = useActiveTrainment((s) => s.logSet);
   const finish = useActiveTrainment((s) => s.finish);
   const clear = useActiveTrainment((s) => s.clear);
   const enqueue = useSyncQueueStore((s) => s.enqueue);
@@ -151,10 +152,18 @@ export function LogWorkoutScreen() {
           onAdd={() => addSet(ex.id)}
           onEdit={(index, patch) => editSet(ex.id, index, patch)}
           onRemove={(index) => removeSet(ex.id, index)}
+          onLog={(index) => logSet(ex.id, index)}
         />
       ))}
     </Screen>
   );
+}
+
+/** "60kg × 10" style summary of a set's last-session hint (nulls → "—"). */
+function formatHint(hint: NonNullable<ActiveExercise['sets'][number]['hint']>): string {
+  const w = hint.weight != null ? `${hint.weight}kg` : '—';
+  const r = hint.repetitions != null ? `${hint.repetitions}` : '—';
+  return `${w} × ${r}`;
 }
 
 function ExerciseCard({
@@ -162,11 +171,13 @@ function ExerciseCard({
   onAdd,
   onEdit,
   onRemove,
+  onLog,
 }: {
   exercise: ActiveExercise;
-  onAdd: () => void;
+  onAdd: () => string;
   onEdit: (index: number, patch: { weight?: number; repetitions?: number }) => void;
   onRemove: (index: number) => void;
+  onLog: (index: number) => void;
 }) {
   // Target rep range from the first planned entry (display only).
   const firstPlan = exercise.plannedSets['1'];
@@ -175,10 +186,33 @@ function ExerciseCard({
       ? `target ${firstPlan.min_reps}–${firstPlan.max_reps} reps`
       : null;
 
-  // The last set is the one you're currently working — it gets the big +/-
-  // steppers; every set already logged collapses into a compact grey row.
-  const current = exercise.sets[exercise.sets.length - 1];
-  const logged = exercise.sets.slice(0, -1);
+  // Which set the +/- editor is bound to. Tap any row to select it; by default
+  // it follows the first not-yet-logged set. Tracked by id so it survives the
+  // re-indexing that add/remove trigger.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const activeSet =
+    exercise.sets.find((s) => s.id === selectedId) ??
+    exercise.sets.find((s) => !s.logged) ??
+    exercise.sets[exercise.sets.length - 1];
+
+  // "Log set ✓" only makes sense while there's still an unlogged set after the
+  // one you're on (the prefill step-through); the final set just gets adjusted.
+  const showLog =
+    activeSet != null &&
+    !activeSet.logged &&
+    exercise.sets.some((s) => !s.logged && s.index > activeSet.index);
+
+  const handleLog = () => {
+    if (!activeSet) return;
+    onLog(activeSet.index);
+    const next = exercise.sets.find((s) => !s.logged && s.index > activeSet.index);
+    setSelectedId(next ? next.id : null);
+  };
+
+  // Add one set beyond the plan and move the editor onto it. It is NOT auto-
+  // confirmed — an unused trailing set is trimmed at Finish, so this can't leave
+  // a phantom set behind.
+  const handleAdd = () => setSelectedId(onAdd());
 
   return (
     <Card style={styles.exCard}>
@@ -191,82 +225,99 @@ function ExerciseCard({
         </Body>
       )}
 
-      {logged.map((s) => (
+      {/* One clean list of every set; the active one is highlighted. */}
+      {exercise.sets.map((s) => (
         <SetRow
           key={s.id}
           set={s}
-          onEdit={(patch) => onEdit(s.index, patch)}
+          active={activeSet != null && s.id === activeSet.id}
+          onSelect={() => setSelectedId(s.id)}
           onRemove={() => onRemove(s.index)}
         />
       ))}
 
-      {current != null && (
-        <View style={styles.current}>
-          <View style={styles.setHead}>
-            <Body color={colors.textMuted} size={14}>Set {current.index}</Body>
-            <Pressable onPress={() => onRemove(current.index)} hitSlop={10}>
-              <Body color={colors.bad} size={14}>Remove ✕</Body>
-            </Pressable>
-          </View>
+      {/* The +/- editor is a single control for the highlighted set — not a set
+          itself — so it lives once, below the list, never between rows. */}
+      {activeSet != null && (
+        <View style={styles.editor}>
+          <Body color={colors.textMuted} size={13} style={styles.editorHead}>
+            Adjust Set {activeSet.index}
+          </Body>
           <View style={styles.steppers}>
             <Stepper
               label="WEIGHT (kg)"
-              value={current.weight ?? 0}
+              value={activeSet.weight ?? 0}
               step={2.5}
               editable
-              onChange={(v) => onEdit(current.index, { weight: v })}
+              onChange={(v) => onEdit(activeSet.index, { weight: v })}
             />
             <Stepper
               label="REPS"
-              value={current.repetitions ?? 0}
+              value={activeSet.repetitions ?? 0}
               step={1}
               editable
-              onChange={(v) => onEdit(current.index, { repetitions: v })}
+              onChange={(v) => onEdit(activeSet.index, { repetitions: v })}
             />
           </View>
+          {activeSet.hint != null &&
+            (activeSet.hint.weight != null || activeSet.hint.repetitions != null) && (
+              <Body color={colors.textFaint} size={13} style={styles.hint}>
+                last time: {formatHint(activeSet.hint)}
+              </Body>
+            )}
+          {showLog && (
+            <Button
+              label="Log set ✓"
+              variant="success"
+              onPress={handleLog}
+              style={styles.logBtn}
+            />
+          )}
         </View>
       )}
 
-      <Button label="Add set" variant="outline" icon="＋" onPress={onAdd} style={styles.addBtn} />
+      <Button label="Add set" variant="outline" icon="＋" onPress={handleAdd} style={styles.addBtn} />
     </Card>
   );
 }
 
-/** A logged set as a compact grey row with inline-editable weight & reps. */
+/**
+ * A grey row for a single set: its number plus weight and reps (display only —
+ * editing happens in the shared +/- editor). Tap it to make it the active set;
+ * the active row is highlighted, and a `logged` (confirmed) set shows a ✓.
+ */
 function SetRow({
   set,
-  onEdit,
+  onSelect,
   onRemove,
+  active = false,
 }: {
   set: ActiveExercise['sets'][number];
-  onEdit: (patch: { weight?: number; repetitions?: number }) => void;
+  onSelect: () => void;
   onRemove: () => void;
+  active?: boolean;
 }) {
   return (
-    <View style={styles.setRow}>
-      <Body color={colors.textMuted} size={14} style={styles.setRowIndex}>
-        Set {set.index}
+    <Pressable onPress={onSelect} style={[styles.setRow, active && styles.setRowActive]}>
+      <Body
+        color={set.logged ? colors.good : colors.textMuted}
+        size={14}
+        style={styles.setRowIndex}
+      >
+        {set.logged ? '✓ ' : ''}Set {set.index}
       </Body>
       <View style={styles.setRowField}>
-        <NumberField
-          value={set.weight ?? 0}
-          onChange={(v) => onEdit({ weight: v })}
-          style={styles.setRowInput}
-        />
+        <Display size={20}>{set.weight ?? 0}</Display>
         <Body color={colors.textFaint} size={13}>kg</Body>
       </View>
       <View style={styles.setRowField}>
-        <NumberField
-          value={set.repetitions ?? 0}
-          onChange={(v) => onEdit({ repetitions: v })}
-          style={styles.setRowInput}
-        />
+        <Display size={20}>{set.repetitions ?? 0}</Display>
         <Body color={colors.textFaint} size={13}>reps</Body>
       </View>
       <Pressable onPress={onRemove} hitSlop={10}>
         <Body color={colors.bad} size={15}>✕</Body>
       </Pressable>
-    </View>
+    </Pressable>
   );
 }
 
@@ -288,25 +339,23 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     backgroundColor: colors.screen,
     borderRadius: radius.sm,
+    borderWidth: 2,
+    borderColor: 'transparent',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
+  setRowActive: { borderColor: colors.coral },
   setRowIndex: { width: 46 },
   setRowField: { flex: 1, flexDirection: 'row', alignItems: 'baseline', justifyContent: 'flex-end', gap: 4 },
-  setRowInput: {
-    fontSize: 20,
-    lineHeight: 24,
-    minWidth: 44,
-    textAlign: 'right',
+  editor: {
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
+    gap: spacing.sm,
   },
-  current: {
-    borderTopWidth: 1.5,
-    borderTopColor: colors.line,
-    paddingTop: spacing.md,
-    gap: spacing.xs,
-  },
-  setHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  editorHead: { textAlign: 'center', letterSpacing: 0.3 },
   steppers: { flexDirection: 'row', justifyContent: 'center', gap: spacing.lg },
+  hint: { textAlign: 'center', marginTop: spacing.xs },
+  logBtn: { marginTop: spacing.sm },
   addBtn: { marginTop: spacing.xs },
   footer: { gap: spacing.sm },
   error: { textAlign: 'center' },

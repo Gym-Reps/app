@@ -8,7 +8,7 @@ import type { MuscleGroup } from './schemas/catalog';
  *
  * Keys are single namespaced strings (`@reps:*`) EXCEPT `CATALOG`, which stays a
  * two-element hierarchical key so `CATALOG_ROOT` can prefix-match every cached
- * search page via `getQueriesData` (see `useCatalogIndex` in TemplateEditorScreen).
+ * search page via `getQueriesData` (see `cachedCatalogIndex` in queries/catalog).
  */
 export const QUERY_KEYS = {
   /** The user's active templates list. */
@@ -25,6 +25,14 @@ export const QUERY_KEYS = {
 
   /** Latest finished trainments (infinite list). */
   TRAINMENTS: () => ['@reps:trainments'],
+  /** One template's trainments (first page) — used to find the previous session. */
+  TRAINMENTS_BY_TEMPLATE: (templateId: string) => [
+    `@reps:trainments-by-template:${templateId}`,
+  ],
+  /** A finished session's performed sets (immutable). */
+  TRAINMENT_SETS: (trainmentId: string) => [
+    `@reps:trainment-sets:${trainmentId}`,
+  ],
 
   /** Prefix for every catalog search cache — use to partial-match all pages. */
   CATALOG_ROOT: () => ['@reps:catalog'],
@@ -33,6 +41,12 @@ export const QUERY_KEYS = {
     '@reps:catalog',
     { q: params.q ?? '', muscleGroup: params.muscleGroup ?? null },
   ],
+  /**
+   * A single catalog entry fetched by id. Used to hydrate template exercise rows
+   * (image/muscle) when the search-page cache doesn't already hold the entry —
+   * e.g. opening a saved template without having gone through the picker.
+   */
+  CATALOG_EXERCISE: (id: string) => [`@reps:catalog-exercise:${id}`],
 
   /** A finished session's performed exercises (immutable). */
   TRAINMENT_EXERCISES: (trainmentId: string) => [

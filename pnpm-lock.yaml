@@ -8,12 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@expo-google-fonts/caveat':
-        specifier: ^0.4.2
-        version: 0.4.2
-      '@expo-google-fonts/patrick-hand':
-        specifier: ^0.4.1
-        version: 0.4.1
       '@react-native-async-storage/async-storage':
         specifier: 2.2.0
         version: 2.2.0(react-native@0.81.5(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.0))
@@ -600,12 +594,6 @@ packages:
   '@babel/types@7.29.7':
     resolution: {integrity: sha512-4zBIxpPzowiZpusoFkyGVwakdRJUyuH5PxQ/PrqghfdFWWasvnCdPfQXHrenDai+gyLARulZjZowCOj6fjT4pA==}
     engines: {node: '>=6.9.0'}
-
-  '@expo-google-fonts/caveat@0.4.2':
-    resolution: {integrity: sha512-kCG35tRUX8Wi+u0Jh5ck3K1u7vZkdLnwRTuKMrEnlVmikvxQFXN1KjF5cL2vqRG7Hwm7648Zl8xe1BWAoIsPCA==}
-
-  '@expo-google-fonts/patrick-hand@0.4.1':
-    resolution: {integrity: sha512-Z/gioyynhzrsF6Od8E2QKpQooHnEzUmfen9ohVT6uaeWAmQy3pkl9r7AGdJx9ersDSLUciCNFV442leHIieJqQ==}
 
   '@expo/cli@54.0.25':
     resolution: {integrity: sha512-WnUqIb8oMBhtwSfIqdCHCzcaDIpLNXItRVd5miuvWi4GO0SGo89PSsAkbVJ+LJgcaY+v5rbgMELJS9I/CqOulA==}
@@ -4066,10 +4054,6 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
-
-  '@expo-google-fonts/caveat@0.4.2': {}
-
-  '@expo-google-fonts/patrick-hand@0.4.1': {}
 
   '@expo/cli@54.0.25(expo-router@6.0.24)(expo@54.0.35)(react-native@0.81.5(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.0))(typescript@5.9.3)':
     dependencies:

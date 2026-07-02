@@ -13,9 +13,9 @@ const baseURL =
 
 // `timeout` guarantees a hung request fails as a clear error (surfaced as a
 // "Network error" toast via the response interceptor) instead of spinning
-// forever. Sized at 60s to survive a free-tier Render cold start (~40s after
-// idle); drop to ~15s once pointed at a local backend.
-export const api = axios.create({ baseURL, withCredentials: true, timeout: 60_000 });
+// forever. 15s comfortably covers the slowest local endpoint (register ~2s of
+// bcrypt); bump it if pointing at a slow remote (e.g. Render cold starts).
+export const api = axios.create({ baseURL, withCredentials: true, timeout: 15_000 });
 
 /**
  * In-memory access token. Short-lived JWT sent as `Authorization: Bearer`.

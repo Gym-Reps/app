@@ -2,12 +2,7 @@ import React, { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
-import {
-  useFonts,
-  Caveat_600SemiBold,
-  Caveat_700Bold,
-} from '@expo-google-fonts/caveat';
-import { PatrickHand_400Regular } from '@expo-google-fonts/patrick-hand';
+import { useFonts } from 'expo-font';
 
 import { QueryClientProvider } from '@tanstack/react-query';
 
@@ -59,14 +54,27 @@ function RootNavigator() {
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: colors.screen },
+          // Smooth per-screen transition, run natively via react-native-screens
+          // (no Reanimated). Pushed screens slide in from the right; modals below
+          // override with their own present-from-bottom animation.
+          animation: 'slide_from_right',
+          animationDuration: 260,
         }}
       >
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="log-workout" options={{ presentation: 'modal' }} />
+        {/* Cross-fade when swapping between the auth and tab stacks — a sideways
+            slide there reads as a push, which the auth gate isn't. */}
+        <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
+        <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+        <Stack.Screen
+          name="log-workout"
+          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+        />
         <Stack.Screen name="create-template" />
         <Stack.Screen name="template/[id]" />
-        <Stack.Screen name="catalog-picker" options={{ presentation: 'modal' }} />
+        <Stack.Screen
+          name="catalog-picker"
+          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+        />
         <Stack.Screen name="progress-detail" />
         <Stack.Screen name="change-password" />
       </Stack>
@@ -78,9 +86,9 @@ function RootNavigator() {
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    Caveat_700Bold,
-    Caveat_600SemiBold,
-    PatrickHand_400Regular,
+    'Satoshi-Bold': require('../assets/fonts/Satoshi-Bold.ttf'),
+    'Satoshi-Medium': require('../assets/fonts/Satoshi-Medium.ttf'),
+    'Satoshi-Regular': require('../assets/fonts/Satoshi-Regular.ttf'),
   });
 
   // Hold the native splash until fonts are ready; `RootNavigator` then hides it

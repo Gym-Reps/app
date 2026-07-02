@@ -11,7 +11,9 @@ export default function TabsLayout() {
   return (
     <Tabs
       tabBar={(props) => <TabBar {...props} />}
-      screenOptions={{ headerShown: false }}
+      // `shift` gives a subtle native slide+fade as you move between tabs, so tab
+      // switches feel as smooth as the stack pushes (bottom-tabs v7 feature).
+      screenOptions={{ headerShown: false, animation: 'shift' }}
     >
       <Tabs.Screen name="home" />
       <Tabs.Screen name="templates" />

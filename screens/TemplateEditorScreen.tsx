@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, StyleSheet, Pressable, Image, Alert, ActivityIndicator } from 'react-native';
-import { useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Screen } from '../components/Screen';
 import { Body, Display } from '../components/Text';
@@ -9,35 +8,11 @@ import { Button } from '../components/Button';
 import { Pill } from '../components/Pill';
 import { colors, radius, spacing } from '../utils/theme';
 import { useTemplateExercises } from '../api/queries/template';
+import { useCatalogByIds } from '../api/queries/catalog';
 import { useRemoveTemplateExercise } from '../api/mutations/template';
-import { QUERY_KEYS } from '../api/queryKeys';
-import {
-  CatalogExercise,
-  CatalogSearchResponse,
-  formatMuscle,
-} from '../api/schemas/catalog';
+import { formatMuscle } from '../api/schemas/catalog';
 import type { ExerciseTemplate } from '../api/schemas/template';
 import { useIsOnline } from '../lib/netinfo';
-
-/**
- * Build an id→catalog lookup from whatever catalog search pages are already
- * cached (the picker populates them). The exercise-template DTO only carries a
- * title + `exerciseCatalogId`, so image/muscle come from here when available;
- * we always have the title as a fallback.
- */
-function useCatalogIndex(): Map<string, CatalogExercise> {
-  const qc = useQueryClient();
-  const map = new Map<string, CatalogExercise>();
-  const caches = qc.getQueriesData<{ pages: CatalogSearchResponse[] }>({
-    queryKey: QUERY_KEYS.CATALOG_ROOT(),
-  });
-  for (const [, data] of caches) {
-    data?.pages?.forEach((page) =>
-      page.exercises.forEach((ex) => map.set(ex.id, ex))
-    );
-  }
-  return map;
-}
 
 export function TemplateEditorScreen() {
   const router = useRouter();
@@ -45,7 +20,18 @@ export function TemplateEditorScreen() {
   const online = useIsOnline();
   const { data: exercises, isLoading, isError, error } = useTemplateExercises(id);
   const remove = useRemoveTemplateExercise(id);
-  const catalog = useCatalogIndex();
+
+  // The exercise-template DTO only carries a title + `exerciseCatalogId`, so
+  // image/muscle are resolved from the catalog by id (hydrated from the picker's
+  // cache when available, fetched otherwise). Title remains the fallback.
+  const catalogIds = React.useMemo(
+    () =>
+      (exercises ?? [])
+        .map((e) => e.exerciseCatalogId)
+        .filter((x): x is string => !!x),
+    [exercises]
+  );
+  const catalog = useCatalogByIds(catalogIds);
 
   const openPicker = () =>
     router.push({ pathname: '/catalog-picker', params: { templateId: id } });

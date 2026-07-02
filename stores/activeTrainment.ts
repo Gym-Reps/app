@@ -22,6 +22,19 @@ export type ActiveSet = {
   weight: number | null;
   repetitions: number | null;
   performedAt: string;
+  /**
+   * Confirmed by the user this session. Drives the focus-advance UI: the first
+   * un-`logged` set is the "working" set (big steppers); logging it advances to
+   * the next pre-seeded set. Persisted so a resumed workout keeps its progress.
+   * Not part of the sync contract (stripped in `finish`).
+   */
+  logged: boolean;
+  /**
+   * The immutable "last time" values shown as a hint under the steppers, set at
+   * seed time on prefilled sets only (`null` for first-ever / added sets). Never
+   * mutated on edit, never synced.
+   */
+  hint?: { weight: number | null; repetitions: number | null } | null;
 };
 
 /** A performed exercise in the active session. `title` is display-only (not synced). */
@@ -41,12 +54,28 @@ export type ActiveTrainment = {
   exercises: ActiveExercise[];
 };
 
+/**
+ * One set carried over from the previous same-template session: the plan's
+ * target range (`min_reps`/`max_reps`) plus the actual `weight`/`repetitions`
+ * performed. Built by `api/queries/prefill.ts`.
+ */
+export type SeedSet = {
+  weight: number | null;
+  repetitions: number | null;
+  min_reps: number | null;
+  max_reps: number | null;
+};
+
 /** Shape a caller (Templates "Start") passes for each exercise to seed. */
 export type StartExerciseInput = {
   exerciseTemplateId: string;
   title: string;
-  /** Optional per-index plan snapshot. Defaults to a single empty planned set. */
-  plannedSets?: PlannedSet[];
+  /**
+   * Sets to prefill from the last session (in `index` order). When present, each
+   * becomes a matching `plannedSets` entry + a prefilled performed set carrying a
+   * "last time" hint. Absent → a single empty, hint-less set (first-ever flow).
+   */
+  seedSets?: SeedSet[];
 };
 
 export type StartFromTemplateInput = {
@@ -59,12 +88,21 @@ export type StartResult =
   | { started: false; reason: 'active-exists' };
 
 const EMPTY_PLAN: PlannedSet = { weight: null, min_reps: null, max_reps: null };
+const EMPTY_SEED: SeedSet = {
+  weight: null,
+  repetitions: null,
+  min_reps: null,
+  max_reps: null,
+};
 
 function nowIso(): string {
   return new Date().toISOString();
 }
 
-/** Build one performed set from a planned entry, at `index` (1-based). */
+/**
+ * Build one performed set from a planned entry, at `index` (1-based). Used when
+ * the user manually appends a set (`addSet`) — starts un-logged with no hint.
+ */
 function seedSet(plan: PlannedSet, index: number): ActiveSet {
   return {
     id: newId(),
@@ -72,21 +110,36 @@ function seedSet(plan: PlannedSet, index: number): ActiveSet {
     weight: plan.weight,
     repetitions: null,
     performedAt: nowIso(),
+    logged: false,
+    hint: null,
   };
 }
 
 /** Seed an exercise's `plannedSets` map + matching `sets` from an input. */
 function seedExercise(input: StartExerciseInput): ActiveExercise {
-  const plans =
-    input.plannedSets && input.plannedSets.length > 0
-      ? input.plannedSets
-      : [EMPTY_PLAN];
+  const prefilled = !!(input.seedSets && input.seedSets.length > 0);
+  const seeds = prefilled ? input.seedSets! : [EMPTY_SEED];
   const plannedSets: Record<string, PlannedSet> = {};
   const sets: ActiveSet[] = [];
-  plans.forEach((plan, i) => {
+  seeds.forEach((seed, i) => {
     const index = i + 1;
-    plannedSets[String(index)] = { ...plan };
-    sets.push(seedSet(plan, index));
+    plannedSets[String(index)] = {
+      weight: seed.weight,
+      min_reps: seed.min_reps,
+      max_reps: seed.max_reps,
+    };
+    sets.push({
+      id: newId(),
+      index,
+      weight: seed.weight,
+      repetitions: seed.repetitions,
+      performedAt: nowIso(),
+      logged: false,
+      // Only prefilled sets carry a "last time" hint; the empty default doesn't.
+      hint: prefilled
+        ? { weight: seed.weight, repetitions: seed.repetitions }
+        : null,
+    });
   });
   return {
     id: newId(),
@@ -116,14 +169,41 @@ function reindex(ex: ActiveExercise): ActiveExercise {
   return { ...ex, sets, plannedSets };
 }
 
+/**
+ * Drop TRAILING sets that were never performed (null / non-positive reps) — an
+ * accidental "Add set" at the end, or a prefilled set left unconfirmed. Their
+ * `plannedSets` entries are dropped too and the exercise is re-indexed so the
+ * count invariant still holds. Only trailing empties are removed; a `0`-rep set
+ * with performed sets after it is kept as-is.
+ */
+function trimTrailingUnperformed(ex: ActiveExercise): ActiveExercise {
+  const sorted = [...ex.sets].sort((a, b) => a.index - b.index);
+  let end = sorted.length;
+  while (end > 0) {
+    const s = sorted[end - 1];
+    if (s.repetitions == null || s.repetitions <= 0) end--;
+    else break;
+  }
+  if (end === sorted.length) return ex; // nothing trailing to trim
+  const kept = new Set(sorted.slice(0, end).map((s) => s.index));
+  const plannedSets: Record<string, PlannedSet> = {};
+  for (const k of Object.keys(ex.plannedSets)) {
+    if (kept.has(Number(k))) plannedSets[k] = ex.plannedSets[k];
+  }
+  return reindex({ ...ex, plannedSets, sets: sorted.slice(0, end) });
+}
+
 type State = {
   active: ActiveTrainment | null;
 
   /** Seed the session from a template. Refuses if one is already in progress. */
   startFromTemplate: (input: StartFromTemplateInput) => StartResult;
 
-  /** Append a set (index `N+1`) to an exercise, extending BOTH plan and sets. */
-  addSet: (exerciseId: string) => void;
+  /**
+   * Append a set (index `N+1`) to an exercise, extending BOTH plan and sets.
+   * Returns the new set's `id` so the caller can select it as active.
+   */
+  addSet: (exerciseId: string) => string;
 
   /**
    * Edit a set: `weight` updates BOTH the performed set and its `plannedSets`
@@ -137,6 +217,12 @@ type State = {
 
   /** Remove a set from an exercise, then re-index `1..N` on plan AND sets. */
   removeSet: (exerciseId: string, index: number) => void;
+
+  /**
+   * Mark a set confirmed for this session (focus-advance): the working set
+   * collapses to a done row and the next pre-seeded set becomes current.
+   */
+  logSet: (exerciseId: string, index: number) => void;
 
   /** Build the sync payload (stamps `finishedAt = now`). Does not clear state. */
   finish: () => SyncPayload | null;
@@ -177,21 +263,27 @@ export const useActiveTrainment = create<State>()(
         return { started: true };
       },
 
-      addSet: (exerciseId) =>
+      addSet: (exerciseId) => {
+        const newSet = seedSet(EMPTY_PLAN, 0); // index fixed up by reindex below
         set((s) => ({
           active: mapExercise(s.active, exerciseId, (ex) => {
             const keys = Object.keys(ex.plannedSets).map(Number);
             const next = (keys.length ? Math.max(...keys) : 0) + 1;
-            // New plan mirrors the last planned entry (a sensible default).
+            // New plan mirrors the last planned entry's weight (a sensible
+            // default); reps start empty so the added set must be logged fresh.
             const lastPlan = ex.plannedSets[String(next - 1)] ?? EMPTY_PLAN;
             const plan: PlannedSet = { ...lastPlan };
+            newSet.index = next;
+            newSet.weight = plan.weight;
             return reindex({
               ...ex,
               plannedSets: { ...ex.plannedSets, [String(next)]: plan },
-              sets: [...ex.sets, seedSet(plan, next)],
+              sets: [...ex.sets, newSet],
             });
           }),
-        })),
+        }));
+        return newSet.id;
+      },
 
       editSet: (exerciseId, index, patch) =>
         set((s) => ({
@@ -231,6 +323,16 @@ export const useActiveTrainment = create<State>()(
           }),
         })),
 
+      logSet: (exerciseId, index) =>
+        set((s) => ({
+          active: mapExercise(s.active, exerciseId, (ex) => ({
+            ...ex,
+            sets: ex.sets.map((set_) =>
+              set_.index === index ? { ...set_, logged: true } : set_
+            ),
+          })),
+        })),
+
       finish: () => {
         const active = get().active;
         if (!active) return null;
@@ -239,7 +341,9 @@ export const useActiveTrainment = create<State>()(
           trainmentTemplateId: active.trainmentTemplateId,
           startedAt: active.startedAt,
           finishedAt: nowIso(),
-          exercises: active.exercises.map((ex) => ({
+          // Trim trailing unperformed sets so an accidental "Add set" doesn't
+          // persist a phantom 0-rep set (which would then prefill next session).
+          exercises: active.exercises.map(trimTrailingUnperformed).map((ex) => ({
             id: ex.id,
             exerciseTemplateId: ex.exerciseTemplateId,
             plannedSets: ex.plannedSets,

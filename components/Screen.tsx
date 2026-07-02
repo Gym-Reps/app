@@ -7,6 +7,10 @@ import { colors, spacing } from '../utils/theme';
 /**
  * Standard screen frame: warm background + safe-area padding. Pass `scroll` for
  * scrollable content, otherwise children fill the screen (for sticky footers).
+ *
+ * Per-screen enter/exit transitions are handled at the navigator level (the
+ * `<Stack>`/`<Tabs>` `animation` options in `app/_layout.tsx`), which run on the
+ * native side via react-native-screens — no Reanimated dependency here.
  */
 export function Screen({
   children,

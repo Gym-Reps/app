@@ -16,17 +16,30 @@ const PERIODS: { key: Period; label: string }[] = [
   { key: 'all', label: 'All time' },
 ];
 
-/** Format a signed weight delta, e.g. `+2.5kg`, `-1kg`, `flat`. */
-function weightLabel(diff: number | null): string {
-  if (diff == null) return '';
-  const rounded = Math.round(diff * 10) / 10;
-  if (rounded === 0) return 'flat';
-  return `${rounded > 0 ? '+' : ''}${rounded}kg`;
+const round1 = (n: number) => Math.round(n * 10) / 10;
+
+/**
+ * Headline delta for an exercise row. Weight is the primary signal, but if weight
+ * held steady we surface reps instead — adding reps at the same load is still
+ * progress and should read as a positive insight, not "flat".
+ */
+function headlineLabel(weightDiff: number | null, repsDiff: number | null): string {
+  if (weightDiff == null) return '';
+  const w = round1(weightDiff);
+  if (w !== 0) return `${w > 0 ? '+' : ''}${w}kg`;
+  const r = round1(repsDiff ?? 0);
+  if (r !== 0) return `${r > 0 ? '+' : ''}${r} ${Math.abs(r) === 1 ? 'rep' : 'reps'}`;
+  return 'flat';
 }
 
-function toneFor(diff: number | null): string {
-  if (diff == null || diff === 0) return colors.flat;
-  return diff > 0 ? colors.good : colors.bad;
+/** Green/red/neutral tone: weight leads, reps break the tie when weight is flat. */
+function toneFor(weightDiff: number | null, repsDiff: number | null): string {
+  if (weightDiff == null) return colors.flat;
+  const w = round1(weightDiff);
+  if (w !== 0) return w > 0 ? colors.good : colors.bad;
+  const r = round1(repsDiff ?? 0);
+  if (r !== 0) return r > 0 ? colors.good : colors.bad;
+  return colors.flat;
 }
 
 export function ProgressScreen() {
@@ -104,8 +117,8 @@ function ExerciseRow({
   last: boolean;
   onPress: () => void;
 }) {
-  const tone = toneFor(trend.latestWeightDiff);
-  const hasComparison = trend.latestWeightDiff != null && trend.points.length >= 2;
+  const tone = toneFor(trend.rangeWeightDiff, trend.rangeRepsDiff);
+  const hasComparison = trend.rangeWeightDiff != null && trend.points.length >= 2;
   return (
     <Pressable onPress={onPress}>
       <View style={[styles.row, last && styles.rowLast]}>
@@ -119,7 +132,9 @@ function ExerciseRow({
         {hasComparison ? (
           <>
             <Sparkline data={trend.points} color={tone} />
-            <Body size={13} color={tone} style={styles.delta}>{weightLabel(trend.latestWeightDiff)}</Body>
+            <Body size={13} color={tone} style={styles.delta}>
+              {headlineLabel(trend.rangeWeightDiff, trend.rangeRepsDiff)}
+            </Body>
           </>
         ) : (
           <Body color={colors.textGhost} size={12} style={styles.noCompare}>no comparison yet</Body>
