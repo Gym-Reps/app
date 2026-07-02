@@ -32,6 +32,17 @@ export function setOnAuthError(cb: (() => void) | null) {
   onAuthError = cb;
 }
 
+/**
+ * Called for server/network failures the feature layer can't surface itself: the
+ * `Result` pattern collapses errors to a message and drops the status code, so
+ * this interceptor is the one place that still sees 5xx / network drops. The
+ * Toast host registers a handler here to raise an app-wide toast.
+ */
+let onServerError: ((message: string) => void) | null = null;
+export function setOnServerError(cb: ((message: string) => void) | null) {
+  onServerError = cb;
+}
+
 api.interceptors.request.use((config) => {
   if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`;
   return config;
@@ -44,7 +55,9 @@ api.interceptors.response.use(
   (r) => r,
   async (error) => {
     const original = error.config;
-    if (error.response?.status === 401 && original && !original._retry) {
+    const status = error.response?.status;
+
+    if (status === 401 && original && !original._retry) {
       original._retry = true;
       try {
         refreshing ??= api
@@ -61,7 +74,18 @@ api.interceptors.response.use(
         setAccessToken(null);
         onAuthError?.(); // surface to the auth gate so the app routes to Login
       }
+      return Promise.reject(error);
     }
+
+    // Global surfacing of failures the feature layer can't see. 4xx (except the
+    // 401 handled above) stays inline at the call site; 5xx / network drops get
+    // an app-wide toast.
+    if (!error.response) {
+      onServerError?.('Network error — check your connection and try again.');
+    } else if (status != null && status >= 500) {
+      onServerError?.('Something went wrong on our end. Please try again.');
+    }
+
     return Promise.reject(error);
   },
 );

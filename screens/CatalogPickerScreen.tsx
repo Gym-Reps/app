@@ -52,6 +52,8 @@ export function CatalogPickerScreen() {
     [search.data]
   );
 
+  console.log("items =>", items)
+
   async function handleAdd(exercise: CatalogExercise) {
     if (!online || add.isPending) return;
     try {
@@ -221,7 +223,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.text,
   },
-  chips: { gap: 8, paddingVertical: spacing.md },
+  chips: { gap: 8, paddingVertical: spacing.md, height: 40, flexShrink: 0 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6 },
   list: { gap: 12, paddingBottom: spacing.xl },
   row: {

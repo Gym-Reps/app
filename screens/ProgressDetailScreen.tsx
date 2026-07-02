@@ -1,96 +1,161 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, StyleSheet } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Screen } from '../components/Screen';
 import { Body, Display } from '../components/Text';
 import { Header } from '../components/Header';
 import { Card } from '../components/Card';
-import { LineChart } from '../components/Charts';
-import { colors, radius } from '../utils/theme';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { progressByExercise, exerciseName, workouts } from '../data/mock';
+import { Button } from '../components/Button';
+import { SkeletonList } from '../components/Skeleton';
+import { colors, radius, spacing } from '../utils/theme';
+import { useExerciseMetrics, useTrainmentMetrics } from '../api/queries/metrics';
+import type { Metric } from '../api/schemas/metrics';
 
-const METRICS = ['Top weight', '1RM est', 'Volume'] as const;
-
-/** Recent per-session summary for one exercise, e.g. "60 × 12,10,8". */
-function recentSessions(exId: string) {
-  return workouts
-    .filter((w) => w.sets.some((s) => s.exerciseId === exId))
-    .map((w) => {
-      const sets = w.sets.filter((s) => s.exerciseId === exId);
-      const top = Math.max(...sets.map((s) => s.weight));
-      const reps = sets.map((s) => s.reps).join(',');
-      return { date: w.performedAt, summary: `${top} × ${reps}` };
-    });
-}
-
+/**
+ * Set-by-set progress diffs for one performed exercise (`exerciseId`) or a whole
+ * finished session (`trainmentId`, reached from the Home "latest trainments"
+ * rows). Diffs come straight from the Metrics module — each row is the signed
+ * change vs. the matched set in the previous same-template session.
+ */
 export function ProgressDetailScreen() {
   const router = useRouter();
-  const { exerciseId } = useLocalSearchParams<{ exerciseId?: string }>();
-  const exId = exerciseId ?? 'bench';
-  const p = progressByExercise[exId] ?? progressByExercise.bench;
-  const [metric, setMetric] = useState(0);
-  const sessions = recentSessions(exId);
+  const { exerciseId, trainmentId, title } = useLocalSearchParams<{
+    exerciseId?: string;
+    trainmentId?: string;
+    title?: string;
+  }>();
+
+  const bySession = trainmentId != null && exerciseId == null;
+
+  // Exactly one of these is enabled (the other is disabled via `enabled`).
+  const exerciseQuery = useExerciseMetrics(bySession ? undefined : exerciseId);
+  const sessionQuery = useTrainmentMetrics(bySession ? trainmentId : undefined);
+  const query = bySession ? sessionQuery : exerciseQuery;
+
+  const heading = title ?? (bySession ? 'Session' : 'Exercise');
 
   return (
     <Screen>
-      <Header title={exerciseName(exId)} onBack={() => router.back()} />
+      <Header title={heading} onBack={() => router.back()} />
 
-      <View style={styles.tabs}>
-        {METRICS.map((m, i) => {
-          const active = i === metric;
-          return (
-            <View
-              key={m}
-              style={[styles.tab, active ? styles.tabActive : styles.tabIdle]}
-              onTouchEnd={() => setMetric(i)}
-            >
-              <Body size={13} color={active ? '#fff' : colors.textFaint}>{m}</Body>
-            </View>
-          );
-        })}
-      </View>
-
-      <Card style={styles.chartCard}>
-        <LineChart data={p.points} months={p.months} />
-      </Card>
-
-      <View style={styles.statRow}>
-        <Card strong style={styles.statCard}>
-          <Body color={colors.textFaint} size={12}>PR</Body>
-          <Display size={26}>{p.pr} kg</Display>
-        </Card>
-        <Card strong style={styles.statCard}>
-          <Body color={colors.textFaint} size={12}>+ since {p.months[0]}</Body>
-          <Display size={26} color={colors.good}>+{p.gain} kg</Display>
-        </Card>
-      </View>
-
-      <Body color={colors.textFaint} size={13} style={styles.recentLabel}>Recent sessions</Body>
-      {sessions.map((s, i) => (
-        <View key={s.date} style={[styles.session, i === sessions.length - 1 && styles.lastSession]}>
-          <Body size={14}>{s.date}</Body>
-          <Body color={colors.textFaint} size={14}>{s.summary}</Body>
+      {query.isLoading ? (
+        <View style={styles.loading}>
+          <SkeletonList count={4} rowHeight={44} />
         </View>
-      ))}
+      ) : query.isError ? (
+        <Card style={styles.errorBox}>
+          <Body color={colors.bad} size={14}>{query.error.message || 'Could not load metrics'}</Body>
+          <Button label="Retry" variant="outline" onPress={() => query.refetch()} />
+        </Card>
+      ) : query.data && query.data.length > 0 ? (
+        bySession ? (
+          <SessionMetrics metrics={query.data} />
+        ) : (
+          <ExerciseMetrics metrics={query.data} />
+        )
+      ) : (
+        <NoComparison />
+      )}
     </Screen>
   );
 }
 
+/** One exercise: a flat list of per-set deltas (index order). */
+function ExerciseMetrics({ metrics }: { metrics: Metric[] }) {
+  return (
+    <View style={styles.section}>
+      <Body color={colors.textFaint} size={13} style={styles.sectionLabel}>
+        Change vs. your previous session
+      </Body>
+      <Card>
+        {metrics.map((m, i) => (
+          <SetRow key={m.currentSetId} index={i + 1} metric={m} last={i === metrics.length - 1} />
+        ))}
+      </Card>
+    </View>
+  );
+}
+
+/** A whole session: group the per-set deltas by performed exercise. */
+function SessionMetrics({ metrics }: { metrics: Metric[] }) {
+  const groups = new Map<string, Metric[]>();
+  for (const m of metrics) {
+    const list = groups.get(m.exerciseId) ?? [];
+    list.push(m);
+    groups.set(m.exerciseId, list);
+  }
+  return (
+    <View style={styles.section}>
+      <Body color={colors.textFaint} size={13} style={styles.sectionLabel}>
+        Change vs. the previous session
+      </Body>
+      {[...groups.entries()].map(([exerciseId, sets], gi) => (
+        <View key={exerciseId} style={gi > 0 && styles.groupGap}>
+          <Body color={colors.textFaint} size={12} style={styles.groupLabel}>
+            Exercise {gi + 1}
+          </Body>
+          <Card>
+            {sets.map((m, i) => (
+              <SetRow key={m.currentSetId} index={i + 1} metric={m} last={i === sets.length - 1} />
+            ))}
+          </Card>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function SetRow({ index, metric, last }: { index: number; metric: Metric; last: boolean }) {
+  return (
+    <View style={[styles.setRow, last && styles.setRowLast]}>
+      <Body color={colors.textFaint} size={14} style={styles.setNum}>Set {index}</Body>
+      <Delta value={metric.weightDiff} unit="kg" />
+      <Delta value={metric.repetitionsDiff} unit="rep" />
+    </View>
+  );
+}
+
+/** A signed, color-coded delta chip (`+2.5kg`, `-1rep`, `=`). */
+function Delta({ value, unit }: { value: number; unit: 'kg' | 'rep' }) {
+  const rounded = Math.round(value * 10) / 10;
+  const color = rounded === 0 ? colors.textGhost : rounded > 0 ? colors.good : colors.bad;
+  const suffix = unit === 'rep' ? (Math.abs(rounded) === 1 ? ' rep' : ' reps') : 'kg';
+  const label = rounded === 0 ? '=' : `${rounded > 0 ? '+' : ''}${rounded}${suffix}`;
+  return (
+    <Body size={14} color={color} style={styles.delta}>{label}</Body>
+  );
+}
+
+function NoComparison() {
+  return (
+    <Card style={styles.empty}>
+      <Display size={22}>No comparison yet</Display>
+      <Body color={colors.textFaint} size={14} style={styles.emptyBody}>
+        Diffs appear once you’ve done this workout at least twice — we compare each
+        set against your previous session. Metrics can also take a moment to compute
+        after a sync.
+      </Body>
+    </Card>
+  );
+}
+
 const styles = StyleSheet.create({
-  tabs: { flexDirection: 'row', gap: 8, marginTop: 14 },
-  tab: { borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 4 },
-  tabActive: { backgroundColor: colors.ink },
-  tabIdle: { borderWidth: 1.5, borderColor: colors.lineStrong },
-  chartCard: { marginTop: 14, paddingHorizontal: 10, paddingTop: 14, paddingBottom: 8 },
-  statRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  statCard: { flex: 1 },
-  recentLabel: { marginTop: 16, marginBottom: 4 },
-  session: {
+  loading: { marginTop: spacing.lg },
+  errorBox: { gap: 10, alignItems: 'flex-start', marginTop: spacing.lg },
+  section: { marginTop: spacing.lg },
+  sectionLabel: { marginBottom: spacing.sm },
+  groupGap: { marginTop: spacing.lg },
+  groupLabel: { marginBottom: spacing.xs },
+  setRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1.5,
+    alignItems: 'center',
+    paddingVertical: 9,
+    borderBottomWidth: 1,
     borderBottomColor: colors.line,
-    paddingVertical: 8,
   },
-  lastSession: { borderBottomWidth: 0 },
+  setRowLast: { borderBottomWidth: 0 },
+  setNum: { flex: 1 },
+  delta: { width: 84, textAlign: 'right' },
+  empty: { alignItems: 'center', gap: 8, paddingVertical: 24, marginTop: spacing.lg, borderRadius: radius.md },
+  emptyBody: { textAlign: 'center' },
 });

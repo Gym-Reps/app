@@ -14,6 +14,8 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from '../utils/auth';
 import { queryClient } from '../api/queryClient';
 import { useSyncQueue } from '../hooks/useSyncQueue';
+import { Toast } from '../components/Toast';
+import { OfflineBanner } from '../components/OfflineBanner';
 import { colors } from '../utils/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -52,22 +54,25 @@ function RootNavigator() {
   }, [status]);
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: colors.screen },
-      }}
-    >
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="log-workout" options={{ presentation: 'modal' }} />
-      <Stack.Screen name="create-template" />
-      <Stack.Screen name="template/[id]" />
-      <Stack.Screen name="catalog-picker" options={{ presentation: 'modal' }} />
-      <Stack.Screen name="compare" />
-      <Stack.Screen name="progress-detail" />
-      <Stack.Screen name="change-password" />
-    </Stack>
+    <>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.screen },
+        }}
+      >
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="log-workout" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="create-template" />
+        <Stack.Screen name="template/[id]" />
+        <Stack.Screen name="catalog-picker" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="progress-detail" />
+        <Stack.Screen name="change-password" />
+      </Stack>
+      <OfflineBanner />
+      <Toast />
+    </>
   );
 }
 

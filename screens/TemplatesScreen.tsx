@@ -7,7 +7,6 @@ import {
   RefreshControl,
   Modal,
   Pressable,
-  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen } from '../components/Screen';
@@ -15,6 +14,7 @@ import { Body, Display } from '../components/Text';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { Field } from '../components/Field';
+import { SkeletonCard } from '../components/Skeleton';
 import { colors, radius, spacing } from '../utils/theme';
 import { useTemplates } from '../api/queries/template';
 import { useDeleteTemplate, useRenameTemplate } from '../api/mutations/template';
@@ -173,8 +173,10 @@ export function TemplatesScreen() {
       </View>
 
       {isLoading && templates.length === 0 ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.coral} />
+        <View style={styles.skeletons}>
+          <SkeletonCard height={150} />
+          <SkeletonCard height={150} />
+          <SkeletonCard height={150} />
         </View>
       ) : (
         <FlatList
@@ -297,7 +299,7 @@ export function TemplatesScreen() {
 
 const styles = StyleSheet.create({
   head: { marginBottom: spacing.lg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  skeletons: { gap: spacing.lg },
   listContent: { gap: spacing.lg, paddingBottom: spacing.xxl },
   card: { gap: spacing.md },
   cardHead: {

@@ -12,7 +12,6 @@ import { useAuth } from '../utils/auth';
 import { usePreferences } from '../api/queries/preferences';
 import { useUpdatePreferences } from '../api/mutations/preferences';
 import type { Preferences } from '../api/schemas/preferences';
-import { homeStats } from '../data/mock';
 
 const WEIGHT_LABEL: Record<Preferences['weightUnit'], string> = {
   kg: 'Kilograms (kg)',
@@ -28,19 +27,23 @@ const GOAL_MAX = 14;
 const DEFAULT_GOAL = 3;
 
 export function ProfileScreen() {
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const router = useRouter();
   const prefs = usePreferences();
   const updatePrefs = useUpdatePreferences();
+
+  // No user profile endpoint yet (see specs/01_AUTH.md); the JWT only carries id
+  // + role. Show honest session info rather than a fabricated name/email.
+  const roleLabel = user ? cap(user.role.toLowerCase()) : 'Member';
 
   return (
     <Screen footer={<Button label="Log out" icon="⎋" variant="danger" onPress={signOut} />}>
       <View style={styles.head}>
         <View style={styles.avatar}>
-          <Display size={30} color="#fff">{homeStats.name[0]}</Display>
+          <Display size={30} color="#fff">💪</Display>
         </View>
-        <Display size={26}>{homeStats.name}</Display>
-        <Body color={colors.textFaint} size={13}>alex@reps.app</Body>
+        <Display size={26}>Your account</Display>
+        <Body color={colors.textFaint} size={13}>{roleLabel} · REPS</Body>
       </View>
 
       {prefs.isLoading ? (

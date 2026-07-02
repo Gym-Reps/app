@@ -8,7 +8,8 @@ import { Card } from '../components/Card';
 import { Pill } from '../components/Pill';
 import { Button } from '../components/Button';
 import { ProgressRing } from '../components/Charts';
-import { colors, radius, spacing } from '../utils/theme';
+import { SkeletonCard, SkeletonRow } from '../components/Skeleton';
+import { colors, spacing } from '../utils/theme';
 import { useTrainments, useWeeklyProgress } from '../api/queries/trainment';
 import type { Trainment, WeeklyProgress } from '../api/schemas/trainment';
 import { usePendingCount } from '../stores/syncQueue';
@@ -136,7 +137,7 @@ function WeeklyCard({
   onSetGoal: () => void;
   onRetry: () => void;
 }) {
-  if (query.isLoading) return <SkeletonCard />;
+  if (query.isLoading) return <SkeletonCard style={styles.weekCard} />;
   if (query.isError) {
     return (
       <Card strong style={styles.weekCard}>
@@ -233,14 +234,6 @@ function InlineError({ message, onRetry }: { message: string; onRetry: () => voi
   );
 }
 
-function SkeletonCard() {
-  return <View style={[styles.weekCard, styles.skeletonCard]} />;
-}
-
-function SkeletonRow() {
-  return <View style={styles.skeletonRow} />;
-}
-
 const styles = StyleSheet.create({
   content: { paddingBottom: spacing.xxl },
   title: { marginBottom: 12 },
@@ -266,15 +259,4 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', gap: 8, paddingVertical: 24 },
   emptyBody: { textAlign: 'center' },
   errorBox: { gap: 10, alignItems: 'flex-start' },
-  skeletonCard: {
-    height: 120,
-    backgroundColor: colors.line,
-    borderRadius: radius.md,
-  },
-  skeletonRow: {
-    height: 58,
-    backgroundColor: colors.line,
-    borderRadius: radius.md,
-    marginBottom: 10,
-  },
 });

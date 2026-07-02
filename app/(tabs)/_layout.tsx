@@ -4,8 +4,8 @@ import { TabBar } from '../../components/TabBar';
 
 /**
  * Bottom-tab group. The order of `Tabs.Screen` entries is the order they appear
- * in the custom `TabBar`. Stack screens (log-workout, compare, etc.) live at the
- * root layout so they cover the tab bar when pushed.
+ * in the custom `TabBar`. Stack screens (log-workout, progress-detail, etc.)
+ * live at the root layout so they cover the tab bar when pushed.
  */
 export default function TabsLayout() {
   return (
