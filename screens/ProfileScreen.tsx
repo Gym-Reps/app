@@ -63,12 +63,12 @@ export function ProfileScreen() {
             onClear={() => updatePrefs.mutate({ weeklyTrainingCount: null })}
           />
 
-          <Body color={colors.textFaint} size={13} style={styles.sectionLabel}>Preferences</Body>
+          {/* <Body color={colors.textFaint} size={13} style={styles.sectionLabel}>Preferences</Body>
           <View style={styles.menu}>
             <InfoRow label="⚖️  Weight unit" value={WEIGHT_LABEL[prefs.data.weightUnit]} />
             <InfoRow label="📏  Length unit" value={LENGTH_LABEL[prefs.data.lengthUnit]} />
             <InfoRow label="🎨  Theme" value={cap(prefs.data.theme)} last />
-          </View>
+          </View> */}
         </>
       ) : null}
 
@@ -132,10 +132,12 @@ function GoalEditor({
         <Button
           label={saving ? 'Saving…' : dirty ? 'Save goal' : 'Saved'}
           onPress={() => !saving && dirty && onSave(goal)}
+          loading={saving}
+          disabled={!dirty}
           style={styles.goalBtn}
         />
         {current != null && (
-          <Button label="Clear" variant="outline" onPress={() => !saving && onClear()} style={styles.goalBtn} />
+          <Button label="Clear" variant="outline" onPress={() => !saving && onClear()} loading={saving} style={styles.goalBtn} />
         )}
       </View>
     </Card>

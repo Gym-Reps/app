@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { updatePreferences } from '../services/preferences';
 import type { Preferences, UpdatePreferencesBody } from '../schemas/preferences';
+import { QUERY_KEYS } from '../queryKeys';
 
 /**
  * PATCH /preferences. Unwraps the service `Result` and throws on `Err` so
@@ -16,8 +17,8 @@ export function useUpdatePreferences() {
       return res.data;
     },
     onSuccess: (prefs) => {
-      qc.setQueryData(['preferences'], prefs);
-      qc.invalidateQueries({ queryKey: ['weekly-progress'] });
+      qc.setQueryData(QUERY_KEYS.PREFERENCES(), prefs);
+      qc.invalidateQueries({ queryKey: QUERY_KEYS.WEEKLY_PROGRESS() });
     },
   });
 }

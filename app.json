@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "app",
-    "slug": "app",
+    "name": "Reps",
+    "slug": "reps",
     "version": "1.0.0",
     "scheme": "reps",
     "orientation": "portrait",

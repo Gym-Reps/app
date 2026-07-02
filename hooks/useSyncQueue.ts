@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import { isOnline, subscribeOnline } from '../lib/netinfo';
 import { queryClient } from '../api/queryClient';
+import { QUERY_KEYS } from '../api/queryKeys';
 import { syncTrainment, isPermanent } from '../api/services/sync';
 import { useSyncQueueStore } from '../stores/syncQueue';
 
@@ -73,8 +74,8 @@ async function drain(): Promise<void> {
   } finally {
     useSyncQueueStore.getState().setInFlight(false);
     if (syncedAny) {
-      queryClient.invalidateQueries({ queryKey: ['trainments'] });
-      queryClient.invalidateQueries({ queryKey: ['weekly-progress'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TRAINMENTS() });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.WEEKLY_PROGRESS() });
     }
   }
 }

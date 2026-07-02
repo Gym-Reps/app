@@ -18,23 +18,31 @@ export function Button({
   variant = 'primary',
   icon,
   style,
+  disabled = false,
+  loading = false,
 }: {
   label: string;
   onPress?: () => void;
   variant?: Variant;
   icon?: string;
   style?: StyleProp<ViewStyle>;
+  disabled?: boolean;
+  /** Shows a pending state (dimmed, non-interactive) — pair with a "…" label. */
+  loading?: boolean;
 }) {
   const c = FILLS[variant];
   const filled = variant === 'primary' || variant === 'success';
+  const inactive = disabled || loading;
   return (
     <Pressable
       onPress={onPress}
+      disabled={inactive}
       style={({ pressed }) => [
         styles.btn,
         { backgroundColor: c.bg, borderColor: c.border },
         filled && hardShadowStrong,
-        pressed && { transform: [{ translateX: 1 }, { translateY: 1 }], shadowOpacity: 0 },
+        pressed && !inactive && { transform: [{ translateX: 1 }, { translateY: 1 }], shadowOpacity: 0 },
+        inactive && styles.inactive,
         style,
       ]}
     >
@@ -57,4 +65,5 @@ const styles = StyleSheet.create({
   },
   inner: { flexDirection: 'row', alignItems: 'center' },
   icon: { marginRight: 8 },
+  inactive: { opacity: 0.6 },
 });

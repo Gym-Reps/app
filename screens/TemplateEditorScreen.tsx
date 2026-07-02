@@ -10,6 +10,7 @@ import { Pill } from '../components/Pill';
 import { colors, radius, spacing } from '../utils/theme';
 import { useTemplateExercises } from '../api/queries/template';
 import { useRemoveTemplateExercise } from '../api/mutations/template';
+import { QUERY_KEYS } from '../api/queryKeys';
 import {
   CatalogExercise,
   CatalogSearchResponse,
@@ -28,7 +29,7 @@ function useCatalogIndex(): Map<string, CatalogExercise> {
   const qc = useQueryClient();
   const map = new Map<string, CatalogExercise>();
   const caches = qc.getQueriesData<{ pages: CatalogSearchResponse[] }>({
-    queryKey: ['catalog'],
+    queryKey: QUERY_KEYS.CATALOG_ROOT(),
   });
   for (const [, data] of caches) {
     data?.pages?.forEach((page) =>

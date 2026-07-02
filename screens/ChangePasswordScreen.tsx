@@ -93,6 +93,7 @@ export function ChangePasswordScreen() {
         <Button
           label={changePassword.isPending ? 'Updating…' : 'Update password'}
           onPress={handleUpdate}
+          loading={changePassword.isPending}
           style={styles.cta}
         />
       </View>

@@ -68,7 +68,7 @@ export function LoginScreen() {
           </View>
         )}
         
-        <Button label={login.isPending ? 'Logging in…' : 'Log in'} onPress={handleSignIn} style={styles.cta} />
+        <Button label={login.isPending ? 'Logging in…' : 'Log in'} onPress={handleSignIn} loading={login.isPending} style={styles.cta} />
         {/* <Pressable onPress={() => {}}>
           <Body color={colors.coral} style={styles.center}>Forgot password?</Body>
         </Pressable> */}

@@ -12,6 +12,7 @@ import type {
   ExerciseTemplate,
   TrainmentTemplate,
 } from '../schemas/template';
+import { QUERY_KEYS } from '../queryKeys';
 
 /**
  * Template mutations. Each unwraps the service `Result` and throws on `Err` so
@@ -30,7 +31,7 @@ export function useCreateTemplate() {
       return res.data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['templates'] });
+      qc.invalidateQueries({ queryKey: QUERY_KEYS.TEMPLATES() });
     },
   });
 }
@@ -45,7 +46,7 @@ export function useRenameTemplate() {
       return res.data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['templates'] });
+      qc.invalidateQueries({ queryKey: QUERY_KEYS.TEMPLATES() });
     },
   });
 }
@@ -67,20 +68,20 @@ export function useDeleteTemplate() {
       if (!res.ok) throw new Error(res.error);
     },
     onMutate: async (id) => {
-      await qc.cancelQueries({ queryKey: ['templates'] });
-      const previous = qc.getQueryData<TrainmentTemplate[]>(['templates']);
-      qc.setQueryData<TrainmentTemplate[]>(['templates'], (old) =>
+      await qc.cancelQueries({ queryKey: QUERY_KEYS.TEMPLATES() });
+      const previous = qc.getQueryData<TrainmentTemplate[]>(QUERY_KEYS.TEMPLATES());
+      qc.setQueryData<TrainmentTemplate[]>(QUERY_KEYS.TEMPLATES(), (old) =>
         (old ?? []).filter((t) => t.id !== id)
       );
       return { previous };
     },
     onError: (_err, _id, ctx) => {
       if (ctx?.previous) {
-        qc.setQueryData(['templates'], ctx.previous);
+        qc.setQueryData(QUERY_KEYS.TEMPLATES(), ctx.previous);
       }
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: ['templates'] });
+      qc.invalidateQueries({ queryKey: QUERY_KEYS.TEMPLATES() });
     },
   });
 }
@@ -95,7 +96,7 @@ export function useAddTemplateExercise(templateId: string) {
       return res.data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['template', templateId, 'exercises'] });
+      qc.invalidateQueries({ queryKey: QUERY_KEYS.TEMPLATE_EXERCISES(templateId) });
     },
   });
 }
@@ -109,7 +110,7 @@ export function useRemoveTemplateExercise(templateId: string) {
       if (!res.ok) throw new Error(res.error);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['template', templateId, 'exercises'] });
+      qc.invalidateQueries({ queryKey: QUERY_KEYS.TEMPLATE_EXERCISES(templateId) });
     },
   });
 }

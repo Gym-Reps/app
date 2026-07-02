@@ -11,6 +11,8 @@ import { ProgressRing } from '../components/Charts';
 import { SkeletonCard, SkeletonRow } from '../components/Skeleton';
 import { colors, spacing } from '../utils/theme';
 import { useTrainments, useWeeklyProgress } from '../api/queries/trainment';
+import { useTemplates } from '../api/queries/template';
+import { QUERY_KEYS } from '../api/queryKeys';
 import type { Trainment, WeeklyProgress } from '../api/schemas/trainment';
 import { usePendingCount } from '../stores/syncQueue';
 
@@ -24,31 +26,30 @@ function formatWhen(iso: string): string {
   return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${time}`;
 }
 
-/** A cached template as stored by slice 03's `['templates']` query (read generically). */
-type CachedTemplate = { id: string; title: string };
-
 export function HomeScreen() {
   const router = useRouter();
   const qc = useQueryClient();
   const weekly = useWeeklyProgress();
   const trainments = useTrainments();
+  // Load templates so a trainment can be labelled with its template title. Read
+  // reactively (not via getQueryData) so titles fill in once the list arrives.
+  const templates = useTemplates();
   const pendingSync = usePendingCount();
 
   const rows = trainments.data?.pages.flatMap((p) => p.trainments) ?? [];
 
-  /** Join a trainment to its template title via the cached `['templates']` list. */
+  /** Join a trainment to its template title via the `['templates']` list. */
   const titleFor = useCallback(
     (t: Trainment): string => {
-      const cached = qc.getQueryData<CachedTemplate[]>(['templates']);
-      const match = cached?.find((c) => c.id === t.trainmentTemplateId);
+      const match = templates.data?.find((c) => c.id === t.trainmentTemplateId);
       return match?.title ?? t.title ?? 'Workout';
     },
-    [qc]
+    [templates.data]
   );
 
   const onRefresh = useCallback(() => {
-    qc.invalidateQueries({ queryKey: ['weekly-progress'] });
-    qc.invalidateQueries({ queryKey: ['trainments'] });
+    qc.invalidateQueries({ queryKey: QUERY_KEYS.WEEKLY_PROGRESS() });
+    qc.invalidateQueries({ queryKey: QUERY_KEYS.TRAINMENTS() });
   }, [qc]);
 
   const refreshing = weekly.isRefetching || trainments.isRefetching;

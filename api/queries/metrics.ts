@@ -2,9 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { queryClient } from '../queryClient';
 import { getExerciseMetrics, getTrainmentMetrics } from '../services/metrics';
 import { listTrainmentExercises } from '../services/exercise';
+import { listTemplateExercises } from '../services/template';
 import { listTrainments } from '../services/trainment';
 import { TRAINMENTS_PAGE_SIZE } from '../schemas/trainment';
 import type { Metric } from '../schemas/metrics';
+import { QUERY_KEYS } from '../queryKeys';
 
 /**
  * Exercise metrics (spec 06). The backend has no aggregated "metrics by period"
@@ -86,9 +88,26 @@ export type MetricsOverview = {
 /** Cached fetch of a finished session's performed exercises (immutable). */
 function fetchTrainmentExercises(trainmentId: string) {
   return queryClient.fetchQuery({
-    queryKey: ['trainment-exercises', trainmentId],
+    queryKey: QUERY_KEYS.TRAINMENT_EXERCISES(trainmentId),
     queryFn: async () => {
       const res = await listTrainmentExercises(trainmentId);
+      if (!res.ok) throw new Error(res.error);
+      return res.data;
+    },
+    staleTime: LEAF_STALE_MS,
+  });
+}
+
+/**
+ * Cached fetch of a template's exercise slots — used only to resolve display
+ * titles (the performed-exercise DTO doesn't carry one). Shares the key with
+ * `useTemplateExercises` so the editor and this fan-out reuse each other's cache.
+ */
+function fetchTemplateExercises(templateId: string) {
+  return queryClient.fetchQuery({
+    queryKey: QUERY_KEYS.TEMPLATE_EXERCISES(templateId),
+    queryFn: async () => {
+      const res = await listTemplateExercises(templateId);
       if (!res.ok) throw new Error(res.error);
       return res.data;
     },
@@ -99,7 +118,7 @@ function fetchTrainmentExercises(trainmentId: string) {
 /** Cached fetch of one performed exercise's per-set metrics. */
 function fetchExerciseMetrics(exerciseId: string) {
   return queryClient.fetchQuery({
-    queryKey: ['exercise', exerciseId, 'metrics'],
+    queryKey: QUERY_KEYS.EXERCISE_METRICS(exerciseId),
     queryFn: async () => {
       const res = await getExerciseMetrics(exerciseId);
       if (!res.ok) throw new Error(res.error);
@@ -131,7 +150,25 @@ async function composeOverview(period: Period): Promise<MetricsOverview> {
     // Chronological (oldest → newest) so the last write wins as "latest".
     .sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime());
 
-  // 2) Fan out: per session → performed exercises → per-exercise metrics.
+  // 2a) Resolve exercise titles: the performed-exercise DTO has no reliable
+  //     `title`, so map `exerciseTemplateId → title` from each session's
+  //     template slots (cached, deduped across the sessions in range).
+  const titleByTemplateExercise = new Map<string, string>();
+  const templateIds = [...new Set(inRange.map((t) => t.trainmentTemplateId))];
+  await Promise.all(
+    templateIds.map(async (templateId) => {
+      try {
+        const slots = await fetchTemplateExercises(templateId);
+        for (const slot of slots) {
+          if (slot.title) titleByTemplateExercise.set(slot.id, slot.title);
+        }
+      } catch {
+        // A missing template just leaves those rows on the DTO/fallback title.
+      }
+    })
+  );
+
+  // 2b) Fan out: per session → performed exercises → per-exercise metrics.
   const groups = new Map<string, GroupAccum>();
   let partial = false;
 
@@ -146,14 +183,15 @@ async function composeOverview(period: Period): Promise<MetricsOverview> {
 
     for (const ex of exercises) {
       const key = ex.exerciseTemplateId;
+      const resolvedTitle = titleByTemplateExercise.get(key) ?? ex.title ?? null;
       const group: GroupAccum = groups.get(key) ?? {
         key,
-        title: ex.title ?? 'Exercise',
+        title: resolvedTitle ?? 'Exercise',
         latestExerciseId: ex.id,
         points: [],
         failed: false,
       };
-      if (ex.title) group.title = ex.title;
+      if (resolvedTitle) group.title = resolvedTitle;
       group.latestExerciseId = ex.id; // chronological order → most recent wins
 
       try {
@@ -212,7 +250,7 @@ async function composeOverview(period: Period): Promise<MetricsOverview> {
  */
 export function useMonthlyMetrics(period: Period) {
   return useQuery({
-    queryKey: ['metrics-overview', period],
+    queryKey: QUERY_KEYS.METRICS_OVERVIEW(period),
     queryFn: () => composeOverview(period),
     staleTime: 5 * 60_000,
   });
@@ -221,7 +259,7 @@ export function useMonthlyMetrics(period: Period) {
 /** One performed exercise's per-set diffs (drill-in detail). */
 export function useExerciseMetrics(exerciseId: string | undefined) {
   return useQuery({
-    queryKey: ['exercise', exerciseId, 'metrics'],
+    queryKey: QUERY_KEYS.EXERCISE_METRICS(exerciseId),
     enabled: exerciseId != null,
     staleTime: LEAF_STALE_MS,
     queryFn: async (): Promise<Metric[]> => {
@@ -235,7 +273,7 @@ export function useExerciseMetrics(exerciseId: string | undefined) {
 /** A whole finished session's per-set diffs (detail reached from Home rows). */
 export function useTrainmentMetrics(trainmentId: string | undefined) {
   return useQuery({
-    queryKey: ['trainment', trainmentId, 'metrics'],
+    queryKey: QUERY_KEYS.TRAINMENT_METRICS(trainmentId),
     enabled: trainmentId != null,
     staleTime: LEAF_STALE_MS,
     queryFn: async (): Promise<Metric[]> => {

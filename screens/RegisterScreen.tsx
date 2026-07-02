@@ -39,6 +39,8 @@ export function RegisterScreen() {
       password,
       confirmPassword: confirm,
     });
+
+    console.log("parsed ->", parsed)
     if (!parsed.success) {
       setErrors(parsed.error.issues.map((issue) => issue.message));
       return;
@@ -47,7 +49,7 @@ export function RegisterScreen() {
     try {
       // Register returns 201 with no token, so authenticate right after with the
       // same credentials to open the session. The auth gate then routes to (tabs).
-      await register.mutateAsync(parsed.data);
+      const res = await register.mutateAsync(parsed.data);
       const { token } = await login.mutateAsync({ email, password });
       signIn(token);
     } catch (err) {

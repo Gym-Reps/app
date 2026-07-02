@@ -287,6 +287,7 @@ export function TemplatesScreen() {
               <Button
                 label={rename.isPending ? 'Saving…' : 'Save'}
                 onPress={submitRename}
+                loading={rename.isPending}
                 style={styles.sheetBtn}
               />
             </View>

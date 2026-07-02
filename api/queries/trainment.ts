@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { getWeeklyProgress, listTrainments } from '../services/trainment';
 import { TRAINMENTS_PAGE_SIZE } from '../schemas/trainment';
+import { QUERY_KEYS } from '../queryKeys';
 
 /**
  * Latest trainments (TanStack Query v5 `useInfiniteQuery`, key `['trainments']`).
@@ -10,7 +11,7 @@ import { TRAINMENTS_PAGE_SIZE } from '../schemas/trainment';
  */
 export function useTrainments() {
   return useInfiniteQuery({
-    queryKey: ['trainments'],
+    queryKey: QUERY_KEYS.TRAINMENTS(),
     initialPageParam: 1,
     queryFn: async ({ pageParam }) => {
       const res = await listTrainments(pageParam);
@@ -25,7 +26,7 @@ export function useTrainments() {
 /** This week's progress card (key `['weekly-progress']`). */
 export function useWeeklyProgress() {
   return useQuery({
-    queryKey: ['weekly-progress'],
+    queryKey: QUERY_KEYS.WEEKLY_PROGRESS(),
     queryFn: async () => {
       const res = await getWeeklyProgress();
       if (!res.ok) throw new Error(res.error);

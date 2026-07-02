@@ -52,8 +52,6 @@ export function CatalogPickerScreen() {
     [search.data]
   );
 
-  console.log("items =>", items)
-
   async function handleAdd(exercise: CatalogExercise) {
     if (!online || add.isPending) return;
     try {
@@ -97,6 +95,7 @@ export function CatalogPickerScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={styles.chipsBar}
         contentContainerStyle={styles.chips}
       >
         <ChipPill
@@ -134,7 +133,8 @@ export function CatalogPickerScreen() {
         <FlatList
           data={items}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
+          style={styles.list}
+          contentContainerStyle={styles.listContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           onEndReachedThreshold={0.4}
@@ -223,9 +223,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.text,
   },
-  chips: { gap: 8, paddingVertical: spacing.md, height: 40, flexShrink: 0 },
+  // `flexGrow: 0` + a bounded content height keep the horizontal scroller from
+  // stretching to fill the column; `alignItems: center` stops the pills from
+  // stretching to that height (the original bug).
+  chipsBar: { flexGrow: 0, marginVertical: spacing.md },
+  chips: { gap: 8, alignItems: 'center', height: 36 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6 },
-  list: { gap: 12, paddingBottom: spacing.xl },
+  list: { flex: 1 },
+  listContent: { gap: 12, paddingTop: spacing.xs, paddingBottom: spacing.xl },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

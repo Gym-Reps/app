@@ -61,6 +61,7 @@ export function CreateTemplateScreen() {
         <Button
           label={create.isPending ? 'Creating…' : 'Create template'}
           onPress={handleCreate}
+          loading={create.isPending}
           style={styles.cta}
         />
       </View>

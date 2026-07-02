@@ -1,6 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { searchExercises } from '../services/catalog';
 import { CATALOG_PAGE_SIZE, MuscleGroup } from '../schemas/catalog';
+import { QUERY_KEYS } from '../queryKeys';
 
 /**
  * Paginated catalog search (TanStack Query v5 `useInfiniteQuery`). `pageParam`
@@ -13,7 +14,7 @@ export function useCatalogSearch(params: {
   muscleGroup?: MuscleGroup;
 }) {
   return useInfiniteQuery({
-    queryKey: ['catalog', { q: params.q ?? '', muscleGroup: params.muscleGroup ?? null }],
+    queryKey: QUERY_KEYS.CATALOG(params),
     initialPageParam: 1,
     queryFn: async ({ pageParam }) => {
       const res = await searchExercises({
