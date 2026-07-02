@@ -40,7 +40,6 @@ export function RegisterScreen() {
       confirmPassword: confirm,
     });
 
-    console.log("parsed ->", parsed)
     if (!parsed.success) {
       setErrors(parsed.error.issues.map((issue) => issue.message));
       return;

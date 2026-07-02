@@ -11,7 +11,10 @@ const baseURL =
   process.env.EXPO_PUBLIC_API_URL ??
   (Constants.expoConfig?.extra?.apiUrl as string | undefined);
 
-export const api = axios.create({ baseURL, withCredentials: true });
+// `timeout` guarantees a hung request fails as a clear error (surfaced as a
+// "Network error" toast via the response interceptor) instead of spinning
+// forever. 15s comfortably covers the slowest endpoint (register ~2s of bcrypt).
+export const api = axios.create({ baseURL, withCredentials: true, timeout: 15_000 });
 
 /**
  * In-memory access token. Short-lived JWT sent as `Authorization: Bearer`.

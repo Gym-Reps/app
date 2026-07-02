@@ -43,6 +43,13 @@
       ],
       "expo-router",
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "4e9d30d4-81e6-4de8-b721-7dfe5e17ca1d"
+      }
+    },
+    "owner": "gym-reps"
   }
 }
