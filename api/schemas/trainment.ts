@@ -46,4 +46,4 @@ export const ZWeeklyProgress = z.object({
   goal: z.coerce.number().int().nullable(),
   trainments: z.array(ZTrainment),
 });
-export type WeeklyProgress = z.infer<typeof ZWeeklyProgress>;
+export type WeeklyProgressResponse = z.infer<typeof ZWeeklyProgress>;

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, StyleProp, ViewStyle } from 'react-native';
-import { colors, radius, hardShadow } from '../utils/theme';
+import { colors, radius, hardShadow } from '../../../utils/theme';
 
 /**
  * Bordered surface. `strong` = the 2px ink border + offset shadow hero card;

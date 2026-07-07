@@ -4,7 +4,7 @@ import { Err, Ok, Result } from '../result';
 import {
   Trainment,
   TrainmentListResponse,
-  WeeklyProgress,
+  WeeklyProgressResponse,
   ZTrainmentListResponse,
   ZTrainmentResponse,
   ZWeeklyProgress,
@@ -48,10 +48,10 @@ export async function listTrainments(
  * GET /trainments/weekly-progress — this Mon–Sun window's finished sessions plus
  * the `weeklyTrainingCount` goal (nullable). Powers the weekly progress card.
  */
-export async function getWeeklyProgress(): Promise<Result<WeeklyProgress, string>> {
+export async function getWeeklyProgress(): Promise<Result<WeeklyProgressResponse, string>> {
   try {
-    const { data } = await api.get('/trainments/weekly-progress');
-    return Ok(ZWeeklyProgress.parse(data));
+    const { data } = await api.get<WeeklyProgressResponse>('/trainments/weekly-progress');
+    return Ok(data);
   } catch (err) {
     return Err(errorMessage(err));
   }

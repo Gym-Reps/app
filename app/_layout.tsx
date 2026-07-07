@@ -9,8 +9,8 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from '../utils/auth';
 import { queryClient } from '../api/queryClient';
 import { useSyncQueue } from '../hooks/useSyncQueue';
-import { Toast } from '../components/Toast';
-import { OfflineBanner } from '../components/OfflineBanner';
+import { Toast } from '../components/ui/atoms/Toast';
+import { OfflineBanner } from '../components/ui/atoms/OfflineBanner';
 import { colors } from '../utils/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
-import { Screen } from '../components/Screen';
-import { Body } from '../components/Text';
-import { Header } from '../components/Header';
-import { Field } from '../components/Field';
-import { Button } from '../components/Button';
+import { Screen } from '../components/ui/atoms/Screen';
+import { Body } from '../components/ui/atoms/Text';
+import { Header } from '../components/ui/atoms/Header';
+import { Field } from '../components/ui/atoms/Field';
+import { Button } from '../components/ui/atoms/Button';
 import { colors } from '../utils/theme';
 import { useRouter } from 'expo-router';
 import { useCreateTemplate } from '../api/mutations/template';

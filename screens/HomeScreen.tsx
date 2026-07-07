@@ -2,21 +2,21 @@ import React, { useCallback } from 'react';
 import { View, StyleSheet, Pressable, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { Screen } from '../components/Screen';
-import { Body, Display } from '../components/Text';
-import { Card } from '../components/Card';
-import { Pill } from '../components/Pill';
-import { Button } from '../components/Button';
-import { ProgressRing } from '../components/Charts';
-import { SkeletonCard, SkeletonRow } from '../components/Skeleton';
+import { Screen } from '../components/ui/atoms/Screen';
+import { Body, Display } from '../components/ui/atoms/Text';
+import { Pill } from '../components/ui/atoms/Pill';
+import { ProgressRing } from '../components/ui/atoms/Charts';
 import { colors, spacing } from '../utils/theme';
 import { useTrainments, useWeeklyProgress } from '../api/queries/trainment';
 import { useTemplates } from '../api/queries/template';
 import { QUERY_KEYS } from '../api/queryKeys';
-import type { Trainment, WeeklyProgress } from '../api/schemas/trainment';
+import type { Trainment, WeeklyProgressResponse } from '../api/schemas/trainment';
 import { usePendingCount } from '../stores/syncQueue';
+import { Card } from '../components/ui/atoms/Card';
+import { Button } from '../components/ui/atoms/Button';
+import { SkeletonRow, SkeletonCard } from '../components/ui/atoms/Skeleton';
+import { MONTHS } from '@utils/date';
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /** "Jun 10, 14:30" from an ISO string (local time, deterministic — no Intl dep). */
 function formatWhen(iso: string): string {
@@ -30,6 +30,7 @@ export function HomeScreen() {
   const router = useRouter();
   const qc = useQueryClient();
   const weekly = useWeeklyProgress();
+
   const trainments = useTrainments();
   // Load templates so a trainment can be labelled with its template title. Read
   // reactively (not via getQueryData) so titles fill in once the list arrives.
@@ -147,7 +148,7 @@ function WeeklyCard({
     );
   }
 
-  const data = query.data as WeeklyProgress;
+  const data = query.data as WeeklyProgressResponse;
   const hasGoal = data.goal != null && data.goal > 0;
   const percent = hasGoal ? Math.round(Math.min(data.completed / (data.goal as number), 1) * 100) : 0;
 

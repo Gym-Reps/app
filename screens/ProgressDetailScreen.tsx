@@ -1,14 +1,18 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Screen } from '../components/Screen';
-import { Body, Display } from '../components/Text';
-import { Header } from '../components/Header';
-import { Card } from '../components/Card';
-import { Button } from '../components/Button';
-import { SkeletonList } from '../components/Skeleton';
+import { Screen } from '../components/ui/atoms/Screen';
+import { Body, Display } from '../components/ui/atoms/Text';
+import { Header } from '../components/ui/atoms/Header';
+import { Card } from '../components/ui/atoms/Card';
+import { Button } from '../components/ui/atoms/Button';
+import { SkeletonList } from '../components/ui/atoms/Skeleton';
 import { colors, radius, spacing } from '../utils/theme';
-import { useExerciseMetrics, useTrainmentMetrics } from '../api/queries/metrics';
+import {
+  useExerciseMetrics,
+  useTrainmentExerciseTitles,
+  useTrainmentMetrics,
+} from '../api/queries/metrics';
 import type { Metric } from '../api/schemas/metrics';
 
 /**
@@ -32,6 +36,9 @@ export function ProgressDetailScreen() {
   const sessionQuery = useTrainmentMetrics(bySession ? trainmentId : undefined);
   const query = bySession ? sessionQuery : exerciseQuery;
 
+  // Session mode groups by exercise, so resolve each performed exercise's name.
+  const titlesQuery = useTrainmentExerciseTitles(bySession ? trainmentId : undefined);
+
   const heading = title ?? (bySession ? 'Session' : 'Exercise');
 
   return (
@@ -49,7 +56,7 @@ export function ProgressDetailScreen() {
         </Card>
       ) : query.data && query.data.length > 0 ? (
         bySession ? (
-          <SessionMetrics metrics={query.data} />
+          <SessionMetrics metrics={query.data} titles={titlesQuery.data ?? {}} />
         ) : (
           <ExerciseMetrics metrics={query.data} />
         )
@@ -77,7 +84,13 @@ function ExerciseMetrics({ metrics }: { metrics: Metric[] }) {
 }
 
 /** A whole session: group the per-set deltas by performed exercise. */
-function SessionMetrics({ metrics }: { metrics: Metric[] }) {
+function SessionMetrics({
+  metrics,
+  titles,
+}: {
+  metrics: Metric[];
+  titles: Record<string, string>;
+}) {
   const groups = new Map<string, Metric[]>();
   for (const m of metrics) {
     const list = groups.get(m.exerciseId) ?? [];
@@ -91,8 +104,8 @@ function SessionMetrics({ metrics }: { metrics: Metric[] }) {
       </Body>
       {[...groups.entries()].map(([exerciseId, sets], gi) => (
         <View key={exerciseId} style={gi > 0 && styles.groupGap}>
-          <Body color={colors.textFaint} size={12} style={styles.groupLabel}>
-            Exercise {gi + 1}
+          <Body color={colors.textFaint} size={12} style={styles.groupLabel} numberOfLines={1}>
+            {titles[exerciseId] ?? 'Exercise'}
           </Body>
           <Card>
             {sets.map((m, i) => (

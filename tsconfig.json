@@ -1,6 +1,15 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": true
+    "strict": true,
+    "paths": {
+      "@atoms/*": ["./components/ui/atoms/*"],
+      "@molecules/*": ["./components/ui/molecules/*"],
+      "@organisms/*": ["./components/ui/organisms/*"],
+      "@screens/*": ["./screens/*"],
+      "@stores/*": ["./stores/*"],
+      "@utils/*": ["./utils/*"],
+      "@api/*": ["./api/*"]
+    }
   }
 }

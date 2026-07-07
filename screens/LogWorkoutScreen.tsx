@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Pressable, Alert } from 'react-native';
-import { Screen } from '../components/Screen';
-import { Body, Display } from '../components/Text';
-import { Button } from '../components/Button';
-import { Card } from '../components/Card';
-import { Stepper } from '../components/Stepper';
+import { Screen } from '../components/ui/atoms/Screen';
+import { Body, Display } from '../components/ui/atoms/Text';
+import { Button } from '../components/ui/atoms/Button';
+import { Card } from '../components/ui/atoms/Card';
+import { Stepper } from '../components/ui/atoms/Stepper';
 import { colors, radius, spacing } from '../utils/theme';
 import { useRouter } from 'expo-router';
 import {

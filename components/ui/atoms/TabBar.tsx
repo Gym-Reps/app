@@ -3,7 +3,7 @@ import { View, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Body } from './Text';
-import { colors } from '../utils/theme';
+import { colors } from '../../../utils/theme';
 
 /** Per-route presentation, keyed by the route file name under `app/(tabs)`. */
 const META: Record<string, { icon: string; label: string }> = {

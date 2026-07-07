@@ -9,12 +9,12 @@ import {
   Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Screen } from '../components/Screen';
-import { Body, Display } from '../components/Text';
-import { Card } from '../components/Card';
-import { Button } from '../components/Button';
-import { Field } from '../components/Field';
-import { SkeletonCard } from '../components/Skeleton';
+import { Screen } from '../components/ui/atoms/Screen';
+import { Body, Display } from '../components/ui/atoms/Text';
+import { Card } from '../components/ui/atoms/Card';
+import { Button } from '../components/ui/atoms/Button';
+import { Field } from '../components/ui/atoms/Field';
+import { SkeletonCard } from '../components/ui/atoms/Skeleton';
 import { colors, radius, spacing } from '../utils/theme';
 import { useTemplates } from '../api/queries/template';
 import { useDeleteTemplate, useRenameTemplate } from '../api/mutations/template';

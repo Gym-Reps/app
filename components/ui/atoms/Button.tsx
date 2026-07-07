@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, View, StyleProp, ViewStyle } from 'react-native';
+import { colors, radius, hardShadowStrong } from '../../../utils/theme';
 import { Body } from './Text';
-import { colors, radius, hardShadowStrong } from '../utils/theme';
 
 type Variant = 'primary' | 'success' | 'outline' | 'danger';
 

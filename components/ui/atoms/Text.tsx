@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text as RNText, TextProps, StyleSheet } from 'react-native';
-import { colors, font } from '../utils/theme';
+import { colors, font } from '../../../utils/theme';
 
 /**
  * Typed text helpers so the Satoshi weights are applied consistently.

@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { View, TextInput, Pressable, StyleSheet, Animated, Easing } from 'react-native';
 import { Body } from './Text';
-import { colors, radius, font } from '../utils/theme';
+import { colors, radius, font } from '../../../utils/theme';
 
 /** Labelled text input with the wireframe's dashed-border resting state. */
 export function Field({

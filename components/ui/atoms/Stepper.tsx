@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Pressable, StyleSheet, TextInput } from 'react-native';
 import { Body, Display } from './Text';
-import { colors, radius, font } from '../utils/theme';
+import { colors, radius, font } from '../../../utils/theme';
 
 /** Number → editable text (kept as a helper so formatting stays in one place). */
 function fmt(n: number): string {

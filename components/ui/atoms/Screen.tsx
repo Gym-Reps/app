@@ -2,7 +2,7 @@ import React from 'react';
 import { View, ScrollView, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { colors, spacing } from '../utils/theme';
+import { colors, spacing } from '../../../utils/theme';
 
 /**
  * Standard screen frame: warm background + safe-area padding. Pass `scroll` for

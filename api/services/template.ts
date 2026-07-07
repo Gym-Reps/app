@@ -34,7 +34,7 @@ export async function createTemplate(
 }
 
 /** GET /trainment-templates — the user's active templates. */
-export async function listTemplates(): Promise<
+export async function listTrainmentTemplates(): Promise<
   Result<TrainmentTemplate[], string>
 > {
   try {

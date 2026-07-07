@@ -10,9 +10,9 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Screen } from '../components/Screen';
-import { Body, Display } from '../components/Text';
-import { Pill } from '../components/Pill';
+import { Screen } from '../components/ui/atoms/Screen';
+import { Body, Display } from '../components/ui/atoms/Text';
+import { Pill } from '../components/ui/atoms/Pill';
 import { colors, radius, font, spacing } from '../utils/theme';
 import { useCatalogSearch } from '../api/queries/catalog';
 import { useAddTemplateExercise } from '../api/mutations/template';

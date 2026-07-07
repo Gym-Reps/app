@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { Body } from './Text';
-import { colors, radius } from '../utils/theme';
+import { colors, radius } from '../../../utils/theme';
 
 type Tone = 'neutral' | 'good' | 'bad' | 'dark' | 'ghost';
 

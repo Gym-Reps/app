@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import Svg, { Circle, Line, Polyline, Text as SvgText } from 'react-native-svg';
 import { Body } from './Text';
-import { colors, radius, font } from '../utils/theme';
+import { colors, radius, font } from '../../../utils/theme';
 
 /** Maps a numeric series to SVG points within a viewBox. */
 function toPoints(values: number[], w: number, h: number, pad = 6) {

@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
-import { Screen } from '../components/Screen';
-import { Body, Display } from '../components/Text';
-import { Card } from '../components/Card';
-import { Button } from '../components/Button';
-import { Pill } from '../components/Pill';
-import { Stepper } from '../components/Stepper';
+import { Screen } from '../components/ui/atoms/Screen';
+import { Body, Display } from '../components/ui/atoms/Text';
+import { Card } from '../components/ui/atoms/Card';
+import { Button } from '../components/ui/atoms/Button';
+import { Pill } from '../components/ui/atoms/Pill';
+import { Stepper } from '../components/ui/atoms/Stepper';
 import { colors, radius } from '../utils/theme';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../utils/auth';

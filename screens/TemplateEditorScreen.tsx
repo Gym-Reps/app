@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, StyleSheet, Pressable, Image, Alert, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Screen } from '../components/Screen';
-import { Body, Display } from '../components/Text';
-import { Header } from '../components/Header';
-import { Button } from '../components/Button';
-import { Pill } from '../components/Pill';
+import { Screen } from '../components/ui/atoms/Screen';
+import { Body, Display } from '../components/ui/atoms/Text';
+import { Header } from '../components/ui/atoms/Header';
+import { Button } from '../components/ui/atoms/Button';
+import { Pill } from '../components/ui/atoms/Pill';
 import { colors, radius, spacing } from '../utils/theme';
 import { useTemplateExercises } from '../api/queries/template';
 import { useCatalogByIds } from '../api/queries/catalog';

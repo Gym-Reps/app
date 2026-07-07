@@ -23,7 +23,6 @@ export function useTrainments() {
   });
 }
 
-/** This week's progress card (key `['weekly-progress']`). */
 export function useWeeklyProgress() {
   return useQuery({
     queryKey: QUERY_KEYS.WEEKLY_PROGRESS(),

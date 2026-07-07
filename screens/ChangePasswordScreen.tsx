@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
-import { Screen } from '../components/Screen';
-import { Body, Display } from '../components/Text';
-import { Field } from '../components/Field';
-import { Button } from '../components/Button';
-import { Header } from '../components/Header';
+import { Screen } from '../components/ui/atoms/Screen';
+import { Body, Display } from '../components/ui/atoms/Text';
+import { Field } from '../components/ui/atoms/Field';
+import { Button } from '../components/ui/atoms/Button';
+import { Header } from '../components/ui/atoms/Header';
 import { colors } from '../utils/theme';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../utils/auth';

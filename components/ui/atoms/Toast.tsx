@@ -2,9 +2,9 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Body } from './Text';
-import { colors, radius, spacing, hardShadow } from '../utils/theme';
-import { useToast, showToast } from '../lib/toast';
-import { setOnServerError } from '../api/client';
+import { colors, radius, spacing, hardShadow } from '../../../utils/theme';
+import { useToast, showToast } from '../../../lib/toast';
+import { setOnServerError } from '../../../api/client';
 
 const AUTO_DISMISS_MS = 3500;
 

@@ -2,8 +2,8 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Body } from './Text';
-import { colors, spacing } from '../utils/theme';
-import { useIsOnline } from '../lib/netinfo';
+import { colors, spacing } from '../../../utils/theme';
+import { useIsOnline } from '../../../lib/netinfo';
 
 /**
  * App-wide offline indicator (specs/08_CROSS_CUTTING.md). Pinned above the tab

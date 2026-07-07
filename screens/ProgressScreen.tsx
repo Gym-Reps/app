@@ -1,14 +1,19 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Screen } from '../components/Screen';
-import { Body, Display } from '../components/Text';
-import { Card } from '../components/Card';
-import { Button } from '../components/Button';
-import { Sparkline } from '../components/Charts';
-import { SkeletonList } from '../components/Skeleton';
+import { Screen } from '../components/ui/atoms/Screen';
+import { Body, Display } from '../components/ui/atoms/Text';
+import { Card } from '../components/ui/atoms/Card';
+import { Button } from '../components/ui/atoms/Button';
+import { Sparkline } from '../components/ui/atoms/Charts';
+import { SkeletonList } from '../components/ui/atoms/Skeleton';
 import { colors, radius, spacing } from '../utils/theme';
-import { useMonthlyMetrics, type ExerciseTrend, type Period } from '../api/queries/metrics';
+import {
+  useMonthlyMetrics,
+  type ExerciseTrend,
+  type Period,
+  type TemplateProgress,
+} from '../api/queries/metrics';
 
 const PERIODS: { key: Period; label: string }[] = [
   { key: 'last-month', label: 'Last month' },
@@ -19,26 +24,26 @@ const PERIODS: { key: Period; label: string }[] = [
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
 /**
- * Headline delta for an exercise row. Weight is the primary signal, but if weight
- * held steady we surface reps instead — adding reps at the same load is still
- * progress and should read as a positive insight, not "flat".
+ * Headline delta for an exercise row: the oldest→newest change. Weight is the
+ * primary signal, but if weight held steady (or was never loaded) we surface reps
+ * instead — adding reps at the same load is still progress and should read as a
+ * positive insight, not "flat".
  */
 function headlineLabel(weightDiff: number | null, repsDiff: number | null): string {
-  if (weightDiff == null) return '';
-  const w = round1(weightDiff);
-  if (w !== 0) return `${w > 0 ? '+' : ''}${w}kg`;
-  const r = round1(repsDiff ?? 0);
-  if (r !== 0) return `${r > 0 ? '+' : ''}${r} ${Math.abs(r) === 1 ? 'rep' : 'reps'}`;
+  const w = weightDiff != null ? round1(weightDiff) : null;
+  if (w != null && w !== 0) return `${w > 0 ? '+' : ''}${w}kg`;
+  const r = repsDiff != null ? round1(repsDiff) : null;
+  if (r != null && r !== 0) return `${r > 0 ? '+' : ''}${r} ${Math.abs(r) === 1 ? 'rep' : 'reps'}`;
+  if (w == null && r == null) return '';
   return 'flat';
 }
 
 /** Green/red/neutral tone: weight leads, reps break the tie when weight is flat. */
 function toneFor(weightDiff: number | null, repsDiff: number | null): string {
-  if (weightDiff == null) return colors.flat;
-  const w = round1(weightDiff);
-  if (w !== 0) return w > 0 ? colors.good : colors.bad;
-  const r = round1(repsDiff ?? 0);
-  if (r !== 0) return r > 0 ? colors.good : colors.bad;
+  const w = weightDiff != null ? round1(weightDiff) : null;
+  if (w != null && w !== 0) return w > 0 ? colors.good : colors.bad;
+  const r = repsDiff != null ? round1(repsDiff) : null;
+  if (r != null && r !== 0) return r > 0 ? colors.good : colors.bad;
   return colors.flat;
 }
 
@@ -51,7 +56,7 @@ export function ProgressScreen() {
     <Screen>
       <View style={styles.head}>
         <Display size={28}>Progress</Display>
-        <Body color={colors.textFaint} size={13}>Trends per exercise · tap to drill in</Body>
+        <Body color={colors.textFaint} size={13}>Oldest vs. newest, per template · tap to drill in</Body>
       </View>
 
       <View style={styles.periods}>
@@ -78,7 +83,7 @@ export function ProgressScreen() {
           <Body color={colors.bad} size={14}>{query.error.message || 'Could not load progress'}</Body>
           <Button label="Retry" variant="outline" onPress={() => query.refetch()} />
         </Card>
-      ) : query.data && query.data.exercises.length > 0 ? (
+      ) : query.data && query.data.templates.length > 0 ? (
         <View>
           {query.data.partial && (
             <Card style={styles.partial}>
@@ -87,12 +92,11 @@ export function ProgressScreen() {
               </Body>
             </Card>
           )}
-          {query.data.exercises.map((ex, i) => (
-            <ExerciseRow
-              key={ex.key}
-              trend={ex}
-              last={i === query.data.exercises.length - 1}
-              onPress={() =>
+          {query.data.templates.map((section) => (
+            <TemplateSection
+              key={section.templateId}
+              section={section}
+              onOpen={(ex) =>
                 router.push({
                   pathname: '/progress-detail',
                   params: { exerciseId: ex.latestExerciseId, title: ex.title },
@@ -108,6 +112,32 @@ export function ProgressScreen() {
   );
 }
 
+function TemplateSection({
+  section,
+  onOpen,
+}: {
+  section: TemplateProgress;
+  onOpen: (ex: ExerciseTrend) => void;
+}) {
+  return (
+    <View style={styles.section}>
+      <Body color={colors.textFaint} size={13} style={styles.sectionTitle} numberOfLines={1}>
+        {section.title}
+      </Body>
+      <Card>
+        {section.exercises.map((ex, i) => (
+          <ExerciseRow
+            key={ex.key}
+            trend={ex}
+            last={i === section.exercises.length - 1}
+            onPress={() => onOpen(ex)}
+          />
+        ))}
+      </Card>
+    </View>
+  );
+}
+
 function ExerciseRow({
   trend,
   last,
@@ -118,7 +148,9 @@ function ExerciseRow({
   onPress: () => void;
 }) {
   const tone = toneFor(trend.rangeWeightDiff, trend.rangeRepsDiff);
-  const hasComparison = trend.rangeWeightDiff != null && trend.points.length >= 2;
+  const hasComparison =
+    (trend.rangeWeightDiff != null || trend.rangeRepsDiff != null) &&
+    trend.points.length >= 2;
   return (
     <Pressable onPress={onPress}>
       <View style={[styles.row, last && styles.rowLast]}>
@@ -164,6 +196,8 @@ const styles = StyleSheet.create({
   periodActive: { backgroundColor: colors.ink },
   periodIdle: { borderWidth: 1.5, borderColor: colors.lineStrong },
   loading: { marginTop: spacing.sm },
+  section: { marginBottom: spacing.lg },
+  sectionTitle: { marginBottom: spacing.sm, textTransform: 'uppercase', letterSpacing: 0.5 },
   errorBox: { gap: 10, alignItems: 'flex-start' },
   partial: {
     marginBottom: spacing.md,

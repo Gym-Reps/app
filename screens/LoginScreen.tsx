@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Pressable, Text } from 'react-native';
-import { Screen } from '../components/Screen';
-import { Body, Display } from '../components/Text';
-import { Field } from '../components/Field';
-import { Button } from '../components/Button';
+import { Screen } from '../components/ui/atoms/Screen';
+import { Body, Display } from '../components/ui/atoms/Text';
+import { Field } from '../components/ui/atoms/Field';
+import { Button } from '../components/ui/atoms/Button';
 import { useRouter } from 'expo-router';
 import { colors, radius, hardShadowStrong,    } from '../utils/theme';
 import { useAuth } from '../utils/auth';

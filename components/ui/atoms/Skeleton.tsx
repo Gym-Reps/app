@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View, StyleProp, ViewStyle } from 'react-native';
-import { colors, radius, spacing } from '../utils/theme';
+import { colors, radius, spacing } from '../../../utils/theme';
 
 /**
  * Loading placeholders shared across screens (spec 08: loading state for every

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 import { Body, Display } from './Text';
-import { colors } from '../utils/theme';
+import { colors } from '../../../utils/theme';
 
 /** Top row with a back/close affordance, a title, and an optional right slot. */
 export function Header({
